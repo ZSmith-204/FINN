@@ -520,14 +520,3 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
   }
 }
 ```
-
----
-
-## 13. Reserved / out of scope for v1 (explicit)
-
-- AuthN/AuthZ enforcement (keys reserved only).
-- Rate limiting.
-- Migration (alter) of existing tables.
-- Hot reload.
-- Non-SQLite backends.
-- Multiple config files / code generation to multiple targets.
