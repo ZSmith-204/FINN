@@ -9,5 +9,5 @@ tests/fixtures/finn.json
 bin/
 
 # artifacts
-dist/
-build/
+dist/*
+build/*
