@@ -456,8 +456,7 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
 
 ## 11. Full worked example
 
-```jsonc
-// finn.jsonc
+```json
 {
   "version": 1,
   "database": {
