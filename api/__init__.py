@@ -1,6 +1,6 @@
 """FINN HTTP layer: ``api`` parsing, FastAPI codegen, and build emission.
 
-Mirrors the :mod:`finn.database` layout: a validated spec dataclass
+Mirrors the :mod:`database` layout: a validated spec dataclass
 (:mod:`.schema`), standalone source rendering (:mod:`.codegen`), and a safe
 build wrapper (:mod:`.build`).  This package is standard-library only; the
 *generated* ``API.py``/``main.py`` import FastAPI, never the reverse.
@@ -8,7 +8,7 @@ build wrapper (:mod:`.build`).  This package is standard-library only; the
 
 from __future__ import annotations
 
-from finn.database import ConfigError, ValidationError, normalize_type
+from database import ConfigError, ValidationError, normalize_type
 
 from .build import (
     API_INIT_CONFIG,

@@ -1,2 +1,7 @@
 # Vim swapfiles
 *.sw[a-p]
+
+__pycache__/
+*.pyc
+tests/fixtures/dummy.db
+tests/fixtures/finn.jsonc

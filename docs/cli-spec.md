@@ -2,7 +2,7 @@
 
 **Status:** Draft v0.1
 **Date:** 2026-11-15
-**Companions:** [`README.md`](../README.md) (authoritative product spec), [`docs/gui-spec.md`](gui-spec.md) (GUI that reuses this contract), [`finn/database/README.md`](../finn/database/README.md) ("DB Layer Guide" — existing database-layer package)
+**Companions:** [`README.md`](../README.md) (authoritative product spec), [`docs/gui-spec.md`](gui-spec.md) (GUI that reuses this contract), [`docs/database-layer.md`](database-layer.md) ("DB Layer Guide" — existing database-layer package)
 
 ---
 
@@ -86,7 +86,7 @@ Every command reports problems through one diagnostic schema:
 | `span` | `{line, column}` (1-based) or `null`; best-effort, filled for parse errors in v1 |
 
 The `path` format MUST be identical to the JSON paths produced by
-`finn.database`'s `ConfigError` (DB Layer Guide §3) — see §12.
+`database`'s `ConfigError` (DB Layer Guide §3) — see §12.
 
 Human format (stderr):
 
@@ -431,7 +431,7 @@ field the GUI checks (gui-spec §3.2).
 5. An existing database is never destructively altered; conflicts are `FINN-E0042`
    requiring human action (README §10.3).
 6. `init` SQL runs only on first database creation (README §4.6).
-7. Diagnostics carry JSON paths in the same format as `finn.database` `ConfigError.path`.
+7. Diagnostics carry JSON paths in the same format as `database` `ConfigError.path`.
 8. The config remains a single file; the build is a single directory (README §1.2).
 
 ## 9. Non-goals (v1)
@@ -455,7 +455,7 @@ Deferred features are tracked in README §13.
 
 ## 11. Open items
 
-- **API-block parser ownership:** the `database` block parser exists (`finn.database`,
+- **API-block parser ownership:** the `database` block parser exists (`database`,
   §12); the API-block parser is owned by another team. The CLI orchestrates both and
   requires the same `ConfigError.path` diagnostic shape from each.
 - **Entry point/module name:** see §12; final name pending team coordination.
@@ -468,7 +468,7 @@ Deferred features are tracked in README §13.
 
 ## 12. Existing substrate / implementation mapping (non-normative)
 
-The `finn.database` package already implements the data layer (DB Layer Guide). The
+The `database` package already implements the data layer (DB Layer Guide). The
 CLI orchestrates it — it MUST NOT re-derive schema DDL, type maps, or validation.
 
 | CLI concern | Existing surface | Guide |
@@ -480,10 +480,9 @@ CLI orchestrates it — it MUST NOT re-derive schema DDL, type maps, or validati
 | Preview/logging support | `schema_ddl`, `table_ddl`, `index_ddl`, `view_ddl`, `topological_table_order`, `quote_ident` (used by the GUI's DDL preview, gui-spec §6.3.8) | §4 |
 | Error taxonomy | `ConfigError` / `SchemaConflictError` (subclass) / `ValidationError` — catching `ConfigError` covers the first two | §10.6 |
 
-Packaging note: `finn` is a **namespace package** — `finn/__init__.py` intentionally
-does not exist and MUST NOT be added without whole-team coordination (DB Layer Guide
-§1). Suggested (non-normative) CLI entry: a `finn/cli.py` module exposed via a console
-script, or `python -m finn.cli`.
+Packaging note: `api` and `database` are top-level packages at the repository root.
+Suggested (non-normative) CLI entry: a `cli.py` module at the repository root exposed
+via a console script, or `python -m cli`.
 
 ---
 

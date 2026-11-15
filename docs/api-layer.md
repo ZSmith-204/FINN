@@ -1,10 +1,10 @@
 # FINN API Layer — Integration Guide
 
 **Audience:** the CLI/build team (and anyone wiring FINN together).
-**Companion spec:** [`README.md`](../..) §5 (api/endpoints/operations/params), §5.3 (binding),
+**Companion spec:** [`README.md`](../README.md) §5 (api/endpoints/operations/params), §5.3 (binding),
 §5.5 (statement kinds → HTTP semantics), §6.2/§6.4 (response shaping + pagination),
 §7 (error contract), §8.1/§8.3 (generated `API.py`/`main.py`).
-**Sibling layer:** see [`finn/database/README.md`](../database/README.md) — this package mirrors it.
+**Sibling layer:** see [`docs/database-layer.md`](database-layer.md) — this package mirrors it.
 
 This package turns the `api` block of the config into a runnable FastAPI app. It parses
 and validates the config, and generates two **self-contained** source files (`API.py`
@@ -25,19 +25,18 @@ the detail — exactly like `db_init` on the database side.
 ## 1. Importing
 
 ```python
-from finn.api import (
+from api import (
     parse_api,
     statement_kind, extract_params, split_statements,
     ApiSpec, Endpoint, Operation, Param, Response, METHODS,
     render_api_module, render_main_module,
     generate, api_init,
     API_INIT_CONFIG, API_INIT_FILE, API_INIT_UNKNOWN,
-    ConfigError, ValidationError, normalize_type,   # re-exported from finn.database
+    ConfigError, ValidationError, normalize_type,   # re-exported from database
 )
 ```
 
-As with the DB layer, `finn/__init__.py` intentionally does **not** exist; `from finn.api ...`
-works when the repo root is on `sys.path`.
+As with the DB layer, `from api ...` works when the repo root is on `sys.path`.
 
 ---
 
@@ -102,7 +101,7 @@ ok, code = api_init("build", api_spec)    # -> (True, None) or (False, "FILE_ERR
 ```
 
 `generate` `mkdir -p`s the output dir and writes both files UTF-8. `api_init` wraps it, never
-raises, and logs via the `finn.api` logger. Error codes mirror `db_init`:
+raises, and logs via the `api` logger. Error codes mirror `db_init`:
 `API_INIT_CONFIG="CONFIG_ERROR"`, `API_INIT_FILE="FILE_ERROR"`, `API_INIT_UNKNOWN="UNKNOWN"`.
 
 ---
@@ -110,8 +109,8 @@ raises, and logs via the `finn.api` logger. Error codes mirror `db_init`:
 ## 6. Full Finn-in-one-place flow (for the CLI team)
 
 ```python
-from finn.database import parse_database, bootstrap, render_db_module
-from finn.api import parse_api, api_init
+from database import parse_database, bootstrap, render_db_module
+from api import parse_api, api_init
 
 db    = parse_database(config["database"])   # validate schema
 bootstrap("build/finn.db", db)               # create/verify SQLite (+ init once)

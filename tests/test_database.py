@@ -23,7 +23,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from finn.database import (  # noqa: E402
+from database import (  # noqa: E402
     DB_INIT_CONFLICT,
     DB_INIT_CONFIG,
     DB_INIT_DB,

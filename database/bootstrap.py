@@ -47,7 +47,7 @@ __all__ = [
     "map_sqlite_error",
 ]
 
-LOGGER = logging.getLogger("finn.database")
+LOGGER = logging.getLogger("database")
 
 DEFAULT_BUSY_TIMEOUT_MS = 5000
 DEFAULT_BLOB_FORMAT = "$base64:{}"
@@ -338,7 +338,7 @@ def db_init(path, spec: DatabaseSpec) -> Tuple[bool, Optional[str]]:
 def coerce_value(column, value: object) -> object:
     """Coerce a Python value to its SQLite storage form (§4.2 write rules).
 
-    ``column`` is a :class:`finn.database.schema.Column` or a canonical FINN
+    ``column`` is a :class:`database.schema.Column` or a canonical FINN
     type string.  ``None`` always passes through (NULL); the DDL/NOT NULL
     constraint decides whether NULL is acceptable.
 

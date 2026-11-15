@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from finn.database import ConfigError
+from database import ConfigError
 
 from .schema import (
     ApiSpec,

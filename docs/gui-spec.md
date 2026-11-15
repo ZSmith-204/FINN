@@ -2,7 +2,7 @@
 
 **Status:** Draft v0.1
 **Date:** 2026-11-15
-**Companions:** [`README.md`](../README.md) (authoritative product spec), [`docs/cli-spec.md`](cli-spec.md) (engine contract — "CLI §n" references below), [`finn/database/README.md`](../finn/database/README.md) ("DB Layer Guide")
+**Companions:** [`README.md`](../README.md) (authoritative product spec), [`docs/cli-spec.md`](cli-spec.md) (engine contract — "CLI §n" references below), [`docs/database-layer.md`](database-layer.md) ("DB Layer Guide")
 
 ---
 
@@ -56,7 +56,7 @@ behaviors it anchors are normative where stated in later sections:
 | `POST /api/test-request` | loopback-only request proxy (§6.8) |
 | `GET /api/events` | SSE/streaming channel for run events and console output |
 
-The Studio host MAY additionally import `finn.database` read-only for the DDL preview
+The Studio host MAY additionally import `database` read-only for the DDL preview
 (§6.3.8); it MUST NOT use that import as a second validator — validation is
 CLI-mediated (§3).
 
@@ -353,11 +353,11 @@ Read-only, live-rendered `CREATE TABLE` / `CREATE INDEX` / `CREATE VIEW` stateme
 in dependency-safe table order, with a Copy button. The pane is labelled advisory;
 `finn build` is authoritative.
 
-Rendering MUST be done by the Studio host process importing `finn.database` —
+Rendering MUST be done by the Studio host process importing `database` —
 `parse_database` on the in-memory tree (best-effort), then `schema_ddl` (DB Layer
 Guide §4). Studio MUST NOT re-implement DDL generation (DB Layer Guide §10.4). On
 `ConfigError`, the pane shows the resulting diagnostics instead of DDL. If the host
-cannot import `finn.database`, the pane reports "unavailable"; no other functionality
+cannot import `database`, the pane reports "unavailable"; no other functionality
 depends on this import. Validation, build, and run remain CLI-mediated (§3).
 
 Example:

@@ -1,7 +1,7 @@
 # FINN Database Layer — Integration Guide
 
 **Audience:** the API team and the GUI/CLI team.
-**Companion spec:** the top-level [`README.md`](../..)  is authoritative; the sections
+**Companion spec:** the top-level [`README.md`](../README.md) is authoritative; the sections
 this package implements are §4 (schema), §4.2 (types), §4.3 (relations), §4.6 (`init`),
 §6.3 (serialization), §7 (SQLite error mapping), §8.3 (generated `DB.py`), §10.2/§10.3
 (connections + re-boot).
@@ -26,7 +26,7 @@ app, never to use this package.
 ## 1. Importing
 
 ```python
-from finn.database import (
+from database import (
     # schema model + parsing
     DatabaseSpec, Table, Column, Index, View,
     parse_database, normalize_type, normalize_fk_action, affinity_for_declared_type,
@@ -46,10 +46,9 @@ from finn.database import (
 )
 ```
 
-**Namespace-package note:** `finn/__init__.py` intentionally does **not** exist (to
-avoid merge conflicts with the other teams). `from finn.database import ...` works as
-long as the repository root is on `sys.path` (it is, when running from the repo root).
-Do NOT add `finn/__init__.py` without coordinating with the whole team.
+**Layout note:** `database` (and its sibling `api`) are top-level packages at the
+repository root. `from database import ...` works as long as the repository root is
+on `sys.path` (it is, when running from the repo root).
 
 ---
 
@@ -101,7 +100,7 @@ FK referential actions (`FK_ACTIONS`, `normalize_fk_action`): `NO ACTION`, `REST
 ## 3. Parsing the `database` block
 
 ```python
-from finn.database import parse_database, ConfigError
+from database import parse_database, ConfigError
 
 database_block = config["database"]      # the JSON/JSONC object
 try:
@@ -125,7 +124,7 @@ and hand it to the DDL/codegen functions below.
 ## 4. DDL generation
 
 ```python
-from finn.database import schema_ddl, table_ddl, index_ddl, view_ddl, topological_table_order
+from database import schema_ddl, table_ddl, index_ddl, view_ddl, topological_table_order
 
 statements = schema_ddl(spec)      # tables (dependency-safe order) + indexes + views
 ```
@@ -150,7 +149,7 @@ so the CLI/build layer can preview or log the schema, and for tests.
 ## 5. Connecting & bootstrapping
 
 ```python
-from finn.database import connect, bootstrap
+from database import connect, bootstrap
 
 # Open a connection. Parent directory is created as needed. Caller owns close().
 conn = connect("build/finn.db")          # also accepts ":memory:" and ""
@@ -191,7 +190,7 @@ success, error_code = db_init("build/finn.db", spec)   # -> (bool, str | None)
 
 * Success -> `(True, None)`.
 * Failure -> `(False, "<error_code>")`; the exception detail is logged through the
-  `finn.database` logger.
+  `database` logger.
 
 | Code | Source exception |
 |---|---|
@@ -222,7 +221,7 @@ Before binding a value into `sqlite3`, coerce it through the column's type so th
 form matches §4.2 / §6.3:
 
 ```python
-from finn.database import coerce, coerce_value, ValidationError
+from database import coerce, coerce_value, ValidationError
 
 try:
     stored = coerce("boolean", True)        # -> 1
@@ -253,7 +252,7 @@ except ValidationError as err:
 After a `SELECT`, convert rows for JSON output (§6.3):
 
 ```python
-from finn.database import serialize_rows, serialize_row, serialize_value
+from database import serialize_rows, serialize_row, serialize_value
 
 rows = conn.execute("SELECT ...").fetchall()
 typed = spec.column_types("users")                 # authoritative per-table map
@@ -280,7 +279,7 @@ a `columns` list disambiguates order when rows are bare tuples.
 ## 8. Error mapping
 
 ```python
-from finn.database import map_sqlite_error
+from database import map_sqlite_error
 
 try:
     conn.execute(statement, params)
@@ -306,7 +305,7 @@ may re-derive status from `code` if it prefers.)
 At build time, generate the standalone data-layer module (§8.3):
 
 ```python
-from finn.database import render_db_module
+from database import render_db_module
 
 source = render_db_module(spec, db_filename="finn.db")   # db_filename defaults to spec.file
 open("build/DB.py", "w", encoding="utf-8").write(source)
@@ -351,7 +350,7 @@ status codes) on top.
 3. **FK enforcement is per-connection.** Always use `connect()` (or the generated
    `DB.connect()`); a raw `sqlite3.connect` will *not* enable `foreign_keys`.
 4. **Don't rebuild the DDL or types yourself.** If you need schema/serialization, import
-   from `finn.database` (build time) or `DB.py` (runtime). Re-deriving it elsewhere risks
+   from `database` (build time) or `DB.py` (runtime). Re-deriving it elsewhere risks
    the two layers drifting.
 5. **`bootstrap` vs `init`.** `init` runs once, only at first creation. Re-running
    `bootstrap` on an existing DB verifies compatibility and does not touch data.
@@ -364,7 +363,7 @@ status codes) on top.
 ## 11. End-to-end example (build side)
 
 ```python
-from finn.database import (
+from database import (
     parse_database, db_init, bootstrap, render_db_module,
     coerce, serialize_rows, map_sqlite_error,
 )
@@ -387,7 +386,7 @@ open("build/DB.py", "w", encoding="utf-8").write(
 )
 
 # 4. example write path (also available at runtime via DB.query/coerce)
-from finn.database import connect, coerce
+from database import connect, coerce
 conn = connect("build/finn.db")
 try:
     name, email = "Ada", "ada@example.com"
@@ -402,9 +401,9 @@ finally:
 
 At **runtime** (inside the generated app) the API layer instead imports the emitted
 `DB.py` and calls `DB.query()`, `DB.coerce()`, `DB.serialize_rows()`, and
-`DB.map_sqlite_error()` — no `finn.database` import needed in `/build`.
+`DB.map_sqlite_error()` — no `database` import needed in `/build`.
 
 ---
 
 _All signatures documented here are the stable public surface; treat them as a contract._
-_They are covered by `tests/test_database.py` (73 stdlib `unittest` tests)._
+_They are covered by `tests/test_database.py` (stdlib `unittest`)._

@@ -37,7 +37,7 @@ DB_PATH = Path(__file__).resolve().parent / __DB_FILENAME__
 BUSY_TIMEOUT_MS = __BUSY_TIMEOUT_MS__
 BLOB_FORMAT = __BLOB_FORMAT__
 
-LOGGER = logging.getLogger("finn.database")
+LOGGER = logging.getLogger("database")
 
 DB_INIT_CONFLICT = "SCHEMA_CONFLICT"
 DB_INIT_CONFIG = "CONFIG_ERROR"

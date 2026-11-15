@@ -1,4 +1,4 @@
-"""DDL emission for a validated :class:`finn.database.schema.DatabaseSpec`.
+"""DDL emission for a validated :class:`database.schema.DatabaseSpec`.
 
 The emitted SQL is SQLite dialect (README §4).  Tables are generated in a
 dependency-safe (topological) order so foreign keys always resolve regardless

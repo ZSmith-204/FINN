@@ -19,7 +19,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from finn.api import (  # noqa: E402
+from api import (  # noqa: E402
     API_INIT_CONFIG,
     API_INIT_FILE,
     API_INIT_UNKNOWN,
@@ -39,7 +39,7 @@ from finn.api import (  # noqa: E402
     split_statements,
     statement_kind,
 )
-from finn.database import normalize_type  # noqa: E402
+from database import normalize_type  # noqa: E402
 
 # The exact `api` block from README §12.
 EXAMPLE_API = {

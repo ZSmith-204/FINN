@@ -1,6 +1,6 @@
 """Build-time emission of the generated ``API.py`` / ``main.py`` files.
 
-Mirrors :func:`finn.database.build`-style layering: :func:`generate` raises on
+Mirrors :func:`database.db_init`-style layering: :func:`generate` raises on
 failure, while :func:`api_init` wraps it for callers that only need a
 ``(success, error_code)`` pair (README §8.1/§8.3).
 """
@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from finn.database import ConfigError
+from database import ConfigError
 
 from .codegen import render_api_module, render_main_module
 from .schema import ApiSpec
@@ -25,7 +25,7 @@ __all__ = [
     "api_init",
 ]
 
-LOGGER = logging.getLogger("finn.api")
+LOGGER = logging.getLogger("api")
 
 API_INIT_CONFIG = "CONFIG_ERROR"
 API_INIT_FILE = "FILE_ERROR"
@@ -52,7 +52,7 @@ def api_init(output_dir, spec: ApiSpec) -> Tuple[bool, Optional[str]]:
     """Non-raising wrapper around :func:`generate`.
 
     Returns ``(True, None)`` on success, or ``(False, error_code)`` on failure.
-    The exception detail is logged through the ``finn.api`` logger.
+    The exception detail is logged through the ``api`` logger.
     """
 
     try:

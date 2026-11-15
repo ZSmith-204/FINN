@@ -3,11 +3,11 @@
 This module models the HTTP surface only: endpoints, operations, parameter
 sources, and response shaping.  It is standard-library only and has no
 FastAPI/HTTP-runtime dependency; the generated ``API.py`` is produced by
-:mod:`finn.api.codegen`.
+:mod:`api.codegen`.
 
 Validation is strict and fail-fast: unknown methods/keys, DDL statements,
 positional ``?`` placeholders, and unresolvable parameters raise
-:class:`finn.database.ConfigError` carrying the JSON path of the offending
+:class:`database.ConfigError` carrying the JSON path of the offending
 element, e.g. ``api.endpoints./users.get.sql``.
 """
 
@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from finn.database import CANONICAL_TYPES, ConfigError, normalize_type
+from database import CANONICAL_TYPES, ConfigError, normalize_type
 
 __all__ = [
     "METHODS",
@@ -33,7 +33,7 @@ __all__ = [
     "split_statements",
 ]
 
-LOGGER = logging.getLogger("finn.api")
+LOGGER = logging.getLogger("api")
 
 METHODS: Tuple[str, ...] = ("get", "post", "put", "patch", "delete")
 
