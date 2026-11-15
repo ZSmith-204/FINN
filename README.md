@@ -452,25 +452,9 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
 - Structured logs (request id, method, path, SQL statement id, duration, error code).
 - Auto-generated OpenAPI (`/docs`, `/redoc`) reflects endpoints, params, and response shapes.
 - `/healthz` (configurable) returns `200` + basic DB check.
-
 ---
 
-## 11. Acceptance criteria (definition of done)
-
-1. A single valid JSON/JSONC config produces a running FastAPI server with the described schema and endpoints, no manual steps.
-2. `finn build` emits a `/build` folder containing `main.py`, `API.py`, `DB.py`, and the initialized `finn.db` (§8.1, §8.3).
-3. Relations declared via column `references` are created and enforced.
-4. Every documented parameter source (path/query/body/header) binds correctly.
-5. Invalid configs fail at build/startup with a path-scoped, human-readable error and never partially serve.
-6. Response shaping (`single`, `list`, pagination, renames, embedded JSON) behaves per §6.
-7. A mutation (UPDATE/DELETE) that affects zero rows returns `404` (§5.5).
-8. `HEAD`/`OPTIONS` requests are handled by FastAPI defaults.
-9. Error contract (§7) is honored for validation, not-found, conflict, and internal errors.
-10. No client input can alter the SQL text of an operation.
-
----
-
-## 12. Full worked example
+## 11. Full worked example
 
 ```jsonc
 // finn.jsonc
