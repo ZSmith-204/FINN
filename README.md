@@ -1,14 +1,6 @@
 ![FINN -- FINN Is Not NGINX](images/logo.png)
 
-<<<<<<< HEAD
-FINN reads **one** configuration file (JSON or JSON) and produces a **fully
-=======
-> **FINN** is a recursive acronym: **FINN Is Not NGINX** (a friendly nod to
-> "GNU's Not Unix"). It has nothing to do with a web server — it is a
-> single-file, schema-and-API generator.
-
 FINN reads **one** configuration file (JSON) and produces a **fully
->>>>>>> 6eb5e77 (cli working?)
 functional FastAPI backend backed by SQLite**, both as runnable source and as an
 initialized database. The config describes two things:
 
@@ -51,13 +43,7 @@ containing both the SQLite database and the FastAPI source.
 ## 2. Config file format
 
 ### 2.1 Accepted extensions and parsing
-
-<<<<<<< HEAD
-- Extensions: `.json`.
-- JSONC strips `//` line comments, `/* ... */` block comments, and trailing commas before parsing.
-=======
 - Extension: `.json`.
->>>>>>> 6eb5e77 (cli working?)
 - Encoding: UTF-8 (BOM tolerated and stripped).
 - One top-level **object** is required. Anything else is a parse error.
 
@@ -493,11 +479,7 @@ as a thin, human-readable bootstrap.
 
 On subsequent builds against an existing DB, FINN **does not** destructively alter existing tables; it verifies compatibility and errors clearly if the config conflicts with on-disk schema. (`init` runs only on first creation.)
 
-### 10.4 Config hot-reload
-
-**v1:** rebuild/restart to apply. Documented.
-
-### 10.5 Logging & introspection
+### 10.4 Logging & introspection
 
 - Structured logs (request id, method, path, SQL statement id, duration, error code).
 - Auto-generated OpenAPI (`/docs`, `/redoc`) reflects endpoints, params, and response shapes.
@@ -505,25 +487,6 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
 ---
 
 ## 11. Full worked example
-
-<<<<<<< HEAD
-=======
-1. A single valid JSON config produces a running FastAPI server with the described schema and endpoints, no manual steps.
-2. `finn build` emits a `/build` folder containing `main.py`, `API.py`, `DB.py`, and the initialized `finn.db` (§8.1, §8.3).
-3. Relations declared via column `references` are created and enforced.
-4. Every documented parameter source (path/query/body/header) binds correctly.
-5. Invalid configs fail at build/startup with a path-scoped, human-readable error and never partially serve.
-6. Response shaping (`single`, `list`, pagination, renames, embedded JSON) behaves per §6.
-7. A mutation (UPDATE/DELETE) that affects zero rows returns `404` (§5.5).
-8. `HEAD`/`OPTIONS` requests are handled by FastAPI defaults.
-9. Error contract (§7) is honored for validation, not-found, conflict, and internal errors.
-10. No client input can alter the SQL text of an operation.
-
----
-
-## 12. Full worked example
-
->>>>>>> 6eb5e77 (cli working?)
 ```json
 {
   "version": 1,
@@ -571,33 +534,3 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
   }
 }
 ```
-<<<<<<< HEAD
-=======
-
----
-
-## 13. Reserved / out of scope for v1 (explicit)
-
-- AuthN/AuthZ enforcement (keys reserved only).
-- Rate limiting.
-- Migration (alter) of existing tables.
-- Hot reload.
-- Non-SQLite backends.
-- Multiple config files / code generation to multiple targets.
-
----
-
-## 14. Resolution log
-
-1. ~~`HEAD`/`OPTIONS` handling~~ → **Resolved:** delegate to FastAPI defaults (§5.1).
-2. ~~Pagination `total` semantics~~ → **Resolved:** dedicated `COUNT(*)` wrapper computes `total`; the page query applies `LIMIT`/`OFFSET` (§6.4).
-3. ~~`database.file` location~~ → **Resolved:** database is always written inside `/build`; `database.file` names the file only (§4.7).
-4. ~~`/build` output shape~~ → **Resolved:** generated as `DB.py` + `API.py` + `main.py`, plus `finn.db` (§8.1, §8.3).
-5. ~~Static file serving~~ → **Resolved:** optional `api.static` copies configured files/directories into `/build/_static` and serves them from the generated `main.py` (`StaticFiles(..., html=True)` for directories) (§5.6).
-
-*No open questions remain; deferred features are listed in §13.*
-
----
-
-**End of spec (v0.1 Draft).**
->>>>>>> 6eb5e77 (cli working?)
