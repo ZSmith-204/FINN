@@ -4,4 +4,4 @@
 __pycache__/
 *.pyc
 tests/fixtures/dummy.db
-tests/fixtures/finn.jsonc
+tests/fixtures/finn.json
