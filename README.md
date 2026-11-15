@@ -26,13 +26,7 @@ containing both the SQLite database and the FastAPI source.
 - **Idempotent bootstrapping.** FINN creates/migrates the SQLite schema so a fresh file produces a working server with no manual steps.
 - **Build artifact.** `finn build` emits a self-contained `/build` directory: the generated FastAPI source plus the initialized `finn.db`.
 
-### 1.2 Non-goals
-
-- Not a general ORM. No object mapping, no lazy loading, no migrations DSL beyond "create if missing."
-- Not multi-dialect. **SQLite is the only supported engine.** SQL must be SQLite-compatible.
-- Not a multi-file project generator. The config remains single-file; FINN produces one runnable build.
-
-### 1.3 Terminology
+### 1.2 Terminology
 
 | Term | Meaning |
 |---|---|
@@ -537,18 +531,3 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
 - Hot reload.
 - Non-SQLite backends.
 - Multiple config files / code generation to multiple targets.
-
----
-
-## 14. Resolution log
-
-1. ~~`HEAD`/`OPTIONS` handling~~ → **Resolved:** delegate to FastAPI defaults (§5.1).
-2. ~~Pagination `total` semantics~~ → **Resolved:** dedicated `COUNT(*)` wrapper computes `total`; the page query applies `LIMIT`/`OFFSET` (§6.4).
-3. ~~`database.file` location~~ → **Resolved:** database is always written inside `/build`; `database.file` names the file only (§4.7).
-4. ~~`/build` output shape~~ → **Resolved:** generated as `DB.py` + `API.py` + `main.py`, plus `finn.db` (§8.1, §8.3).
-
-*No open questions remain; deferred features are listed in §13.*
-
----
-
-**End of spec (v0.1 Draft).**
