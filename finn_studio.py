@@ -187,6 +187,11 @@ def default_cli_command() -> List[str]:
     finn = shutil.which("finn")
     if finn:
         return [finn]
+    if getattr(sys, "frozen", False):
+        # Frozen GUI must drive the `finn` CLI on PATH; returning the bare
+        # name lets QProcess fail cleanly (degraded mode) if it is absent
+        # instead of re-spawning this binary as if it were Python.
+        return ["finn"]
     return [sys.executable, str(cli_script_path())]
 
 

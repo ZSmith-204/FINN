@@ -11,6 +11,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -149,6 +150,34 @@ class TestCliHelpers(unittest.TestCase):
             fs.cli_args_run("/x.json", 9000),
             ["run", "--json", "--config", "/x.json", "--host", "127.0.0.1",
              "--port", "9000"])
+
+    def test_default_cli_command_frozen_uses_finn_on_path(self):
+        # A frozen GUI drives the external `finn` CLI, never itself as Python.
+        with mock.patch.object(fs.shutil, "which",
+                               return_value="/opt/bin/finn"), \
+                mock.patch.object(sys, "frozen", True, create=True):
+            self.assertEqual(fs.default_cli_command(), ["/opt/bin/finn"])
+
+    def test_default_cli_command_frozen_without_finn(self):
+        with mock.patch.object(fs.shutil, "which", return_value=None), \
+                mock.patch.object(sys, "frozen", True, create=True):
+            self.assertEqual(fs.default_cli_command(), ["finn"])
+
+    def test_default_cli_command_source_uses_interpreter(self):
+        with mock.patch.object(fs.shutil, "which", return_value=None), \
+                mock.patch.object(sys, "frozen", False, create=True):
+            self.assertEqual(
+                fs.default_cli_command(),
+                [sys.executable, str(fs.cli_script_path())])
+
+    def test_frozen_run_command_never_probes_can_serve(self):
+        # Regression: frozen resolutions are single-element commands, so
+        # run_command must never probe sys.executable as if it were Python.
+        with mock.patch.object(fs.shutil, "which", return_value=None), \
+                mock.patch.object(sys, "frozen", True, create=True), \
+                mock.patch.object(fs, "can_serve") as can_serve:
+            self.assertEqual(fs.run_command(), ["finn"])
+            can_serve.assert_not_called()
 
 
 class TestHandshake(unittest.TestCase):
