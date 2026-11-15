@@ -1,4 +1,4 @@
-# FINN — FINN Is Not NGINX
+![FINN -- FINN Is Not NGINX](images/logo.png)
 
 > **FINN** is a recursive acronym: **FINN Is Not NGINX** (a friendly nod to
 > "GNU's Not Unix"). It has nothing to do with a web server — it is a
