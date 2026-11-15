@@ -1,6 +1,14 @@
 ![FINN -- FINN Is Not NGINX](images/logo.png)
 
+<<<<<<< HEAD
 FINN reads **one** configuration file (JSON or JSON) and produces a **fully
+=======
+> **FINN** is a recursive acronym: **FINN Is Not NGINX** (a friendly nod to
+> "GNU's Not Unix"). It has nothing to do with a web server — it is a
+> single-file, schema-and-API generator.
+
+FINN reads **one** configuration file (JSON) and produces a **fully
+>>>>>>> 6eb5e77 (cli working?)
 functional FastAPI backend backed by SQLite**, both as runnable source and as an
 initialized database. The config describes two things:
 
@@ -44,8 +52,12 @@ containing both the SQLite database and the FastAPI source.
 
 ### 2.1 Accepted extensions and parsing
 
+<<<<<<< HEAD
 - Extensions: `.json`.
 - JSONC strips `//` line comments, `/* ... */` block comments, and trailing commas before parsing.
+=======
+- Extension: `.json`.
+>>>>>>> 6eb5e77 (cli working?)
 - Encoding: UTF-8 (BOM tolerated and stripped).
 - One top-level **object** is required. Anything else is a parse error.
 
@@ -65,12 +77,12 @@ non-zero** and does not produce a build or serve traffic.
 
 ## 3. Top-level schema
 
-```jsonc
+```json
 {
   "version": 1,
-  "meta": { /* optional */ },
-  "database": { ... },   // required
-  "api": { ... }         // required
+  "meta": {  },
+  "database": { ... },   
+  "api": { ... }         
 }
 ```
 
@@ -87,44 +99,44 @@ Unrecognized top-level keys are rejected (fail-fast) unless `"extraKeys": "ignor
 
 ## 4. The `database` object
 
-```jsonc
+```json
 "database": {
-  "file": "finn.db",              // optional; output DB filename (see §4.7)
+  "file": "finn.db",              
   "tables": {
     "<table_name>": { ...TableDef }
   },
-  "indexes": [ ... ],        // optional
-  "views":   { ... },        // optional
-  "init":    [ "SQL", ... ]  // optional raw statements executed after schema creation
+  "indexes": [ ... ],        
+  "views":   { ... },        
+  "init":    [ "SQL", ... ]  
 }
 ```
 
 ### 4.1 Table definition (`TableDef`)
 
-```jsonc
+```json
 {
-  "columns":   { "<column_name>": { ...ColumnDef } },   // required, ≥1
-  "primaryKey": ["id"],                                 // optional; list of column names
-  "indexes":   [ ... ],                                 // optional, table-local indexes
-  "withoutRowid": false                                 // optional
+  "columns":   { "<column_name>": { ...ColumnDef } },   
+  "primaryKey": ["id"],                                 
+  "indexes":   [ ... ],                                 
+  "withoutRowid": false                                 
 }
 ```
 
 ### 4.2 Column definition (`ColumnDef`)
 
-```jsonc
+```json
 {
-  "type":      "integer",          // required
-  "nullable":  false,              // optional, default false
-  "default":   null,               // optional; literal or SQL expression string
-  "primaryKey": false,             // optional, default false
-  "autoincrement": false,          // optional, integer PKs only
-  "unique":    false,              // optional
-  "check":     "length(name) > 0", // optional SQL expression
-  "references": "other_table.id",  // optional — relation (see §4.3)
-  "onDelete":  "SET NULL",         // optional, with references
-  "onUpdate":  "CASCADE",          // optional, with references
-  "description": "..."             // optional
+  "type":      "integer",          
+  "nullable":  false,              
+  "default":   null,               
+  "primaryKey": false,             
+  "autoincrement": false,          
+  "unique":    false,              
+  "check":     "length(name) > 0", 
+  "references": "other_table.id",  
+  "onDelete":  "SET NULL",         
+  "onUpdate":  "CASCADE",          
+  "description": "..."             
 }
 ```
 
@@ -163,7 +175,7 @@ Runtime rules:
 
 ### 4.4 Indexes
 
-```jsonc
+```json
 { "columns": ["user_id"], "unique": false, "name": "idx_orders_user" }
 ```
 
@@ -172,7 +184,7 @@ Runtime rules:
 
 ### 4.5 `views`
 
-```jsonc
+```json
 "views": {
   "open_orders": { "sql": "SELECT ... FROM orders WHERE status='open'" }
 }
@@ -192,9 +204,10 @@ Filename (name only, no path) for the generated SQLite database. **Default: `fin
 
 ## 5. The `api` object
 
-```jsonc
+```json
 "api": {
-  "basePath": "/api",                    // optional, default "/"
+  "basePath": "/api",                    
+  "static": { ... },                     
   "endpoints": {
     "<path>": { ...EndpointDef }
   }
@@ -205,13 +218,13 @@ Filename (name only, no path) for the generated SQLite database. **Default: `fin
 
 An endpoint object's keys are **HTTP methods (lowercase)**; each value is an **operation** bound to SQL.
 
-```jsonc
+```json
 "endpoints": {
   "/users": {
-    "get":  { "sql": "SELECT * FROM users", ... },   // full operation form
+    "get":  { "sql": "SELECT * FROM users", ... },   
   },
   "/users/{id}": {
-    "get":  "SELECT * FROM users WHERE id = :id",     // shorthand: bare SQL string
+    "get":  "SELECT * FROM users WHERE id = :id",     
     "put":  { "sql": "...", ... },
     "delete": "DELETE FROM users WHERE id = :id"
   }
@@ -230,14 +243,14 @@ config is unnecessary and ignored (with a warning).
 
 Full form:
 
-```jsonc
+```json
 {
-  "sql": "SELECT ... WHERE id = :id",   // required
-  "params": { ... },                    // optional, formal parameter spec (see §5.3)
-  "response": { ... },                  // optional, shaping (see §6.3)
+  "sql": "SELECT ... WHERE id = :id",   
+  "params": { ... },                    
+  "response": { ... },                  
   "description": "...",
-  "authentication": "none",             // optional (reserved, see §8)
-  "rateLimit": null                     // optional (reserved)
+  "authentication": "none",             
+  "rateLimit": null                     
 }
 ```
 
@@ -258,7 +271,7 @@ Shorthand: a bare string is treated as `{ "sql": "..." }`.
 
 - **`params`** (optional) is a formal declaration used to disambiguate sources and enforce requiredness/type:
 
-```jsonc
+```json
 "params": {
   "status":  { "source": "query",  "required": true,  "type": "text" },
   "limit":   { "source": "query",  "type": "integer", "default": 50 },
@@ -296,6 +309,40 @@ FINN classifies the statement(s) and derives response behavior:
 - Mismatch of method vs. statement (e.g. `delete` containing `SELECT`) is allowed but logged as a warning at startup.
 - `POST`/`PUT` with a `SELECT` returning exactly zero rows → `404`; ≥1 rows → `200` with rows.
 
+### 5.6 Static file & directory serving
+
+`api.static` is optional. It maps URL paths to files or directories served
+alongside the generated API:
+
+```json
+"static": {
+  "/":       { "file": "index.html" },
+  "/about":  { "file": "about.html", "contentType": "text/html" },
+  "/assets": { "directory": "public/assets" }
+}
+```
+
+- Each key is a URL path (normalized to start with `/`, one trailing `/`
+  stripped); each value is an object with **exactly one** of `file` or
+  `directory`, plus an optional `contentType` override (file targets only).
+- Source paths resolve relative to the **config file's directory** and are
+  copied into `/build/_static/` at build time; `main.py` serves them from
+  there (the originals are not read at runtime).
+- Directory targets are mounted with `StaticFiles(..., html=True)`, so
+  `index.html` is served at the directory root (NGINX-like behavior). File
+  targets are served with `FileResponse`; the MIME type is guessed from the
+  extension at build time (`contentType` overrides it; fallback
+  `application/octet-stream`).
+- Paths must be literal (no `{params}`); a static path may not prefix-overlap
+  another static path, may not overlap any endpoint route (endpoints are
+  compared under `basePath`, with `{segment}` matching one segment), and may
+  not use the reserved `/docs`, `/redoc`, `/openapi.json`, or `/healthz`.
+- Symlinks are rejected anywhere in static targets; targets must resolve inside
+  the config file's directory.
+- `_static/` is staged and published atomically and rebuilt (or removed) fresh
+  on every build, so stale artifacts never linger.
+- `endpoints` remains required; a static-only API uses `"endpoints": {}`.
+
 ---
 
 ## 6. Response shaping
@@ -306,13 +353,13 @@ FINN classifies the statement(s) and derives response behavior:
 
 ### 6.2 `response` overrides
 
-```jsonc
+```json
 "response": {
-  "shape": "single",          // "list" (default) | "single" | "none"
-  "key":    "row",            // wrap "single" as { "row": {...} }
-  "columns": ["id","name"],   // optional projection/mapping
-  "renames": { "id": "userId" }, // optional key rename
-  "paginate": true            // optional, SELECT only
+  "shape": "single",          
+  "key":    "row",            
+  "columns": ["id","name"],   
+  "renames": { "id": "userId" }, 
+  "paginate": true            
 }
 ```
 
@@ -385,13 +432,14 @@ creation, and **generates a self-contained `/build` folder** containing:
 ├── main.py          # FastAPI entrypoint; assembles the app from API.py + DB.py
 ├── API.py           # generated routes (endpoints, params, response shaping)
 ├── DB.py            # generated schema, connection handling, data helpers
+├── _static/         # copied static files/dirs (only when api.static is set)
 └── finn.db          # initialized SQLite database
 ```
 
 - The build is **idempotent**: re-running against an existing DB does not destructively alter tables; it verifies compatibility and errors clearly on conflict (§9.4).
 - The generated app is runnable standalone (`uvicorn build.main:app`, or `cd build && uvicorn main:app`); no FINN runtime is required to *serve* the built app.
 
-### 8.2 `finn run [--config finn.jsonc]`
+### 8.2 `finn run [--config finn.json]`
 
 Builds (if out of date) and serves the generated app directly — a convenience
 wrapper around build + serve.
@@ -399,11 +447,13 @@ wrapper around build + serve.
 ### 8.3 Generated source layout
 
 FINN does **not** emit a single monolith. The `/build` folder always contains
-three Python modules plus the database:
+three Python modules plus the database (and `_static/` when `api.static` is
+configured):
 
 - **`DB.py`** — schema + data layer. Contains the generated `CREATE TABLE` / index / view DDL (from §4), the `init` statements, a connection factory (applies `PRAGMA foreign_keys=ON`, `busy_timeout`, `journal_mode=WAL`), and helpers for serialization (§6.3) and SQLite-error mapping (§7). No HTTP concerns.
 - **`API.py`** — HTTP layer. Contains the generated FastAPI `APIRouter` with one route per endpoint/operation, parameter models (from §5.3), response shaping (§6.2), and pagination (§6.4). Imports from `DB.py` only.
-- **`main.py`** — entrypoint. Creates the `FastAPI` app, mounts the router under `api.basePath`, registers error handlers (§7), CORS, and `/healthz`; exposes `app` for `uvicorn build.main:app`.
+- **`main.py`** — entrypoint. Creates the `FastAPI` app, mounts the router under `api.basePath`, registers error handlers (§7), CORS, and `/healthz`; exposes `app` for `uvicorn build.main:app`. When `api.static` is configured, it also mounts/serves the copied targets from the sibling `_static/` directory.
+- **`_static/`** — copied static files and directories from `api.static` (present only when configured); served by `main.py`.
 
 This split keeps data-access and HTTP concerns decoupled, and leaves `main.py`
 as a thin, human-readable bootstrap.
@@ -456,6 +506,24 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
 
 ## 11. Full worked example
 
+<<<<<<< HEAD
+=======
+1. A single valid JSON config produces a running FastAPI server with the described schema and endpoints, no manual steps.
+2. `finn build` emits a `/build` folder containing `main.py`, `API.py`, `DB.py`, and the initialized `finn.db` (§8.1, §8.3).
+3. Relations declared via column `references` are created and enforced.
+4. Every documented parameter source (path/query/body/header) binds correctly.
+5. Invalid configs fail at build/startup with a path-scoped, human-readable error and never partially serve.
+6. Response shaping (`single`, `list`, pagination, renames, embedded JSON) behaves per §6.
+7. A mutation (UPDATE/DELETE) that affects zero rows returns `404` (§5.5).
+8. `HEAD`/`OPTIONS` requests are handled by FastAPI defaults.
+9. Error contract (§7) is honored for validation, not-found, conflict, and internal errors.
+10. No client input can alter the SQL text of an operation.
+
+---
+
+## 12. Full worked example
+
+>>>>>>> 6eb5e77 (cli working?)
 ```json
 {
   "version": 1,
@@ -503,3 +571,33 @@ On subsequent builds against an existing DB, FINN **does not** destructively alt
   }
 }
 ```
+<<<<<<< HEAD
+=======
+
+---
+
+## 13. Reserved / out of scope for v1 (explicit)
+
+- AuthN/AuthZ enforcement (keys reserved only).
+- Rate limiting.
+- Migration (alter) of existing tables.
+- Hot reload.
+- Non-SQLite backends.
+- Multiple config files / code generation to multiple targets.
+
+---
+
+## 14. Resolution log
+
+1. ~~`HEAD`/`OPTIONS` handling~~ → **Resolved:** delegate to FastAPI defaults (§5.1).
+2. ~~Pagination `total` semantics~~ → **Resolved:** dedicated `COUNT(*)` wrapper computes `total`; the page query applies `LIMIT`/`OFFSET` (§6.4).
+3. ~~`database.file` location~~ → **Resolved:** database is always written inside `/build`; `database.file` names the file only (§4.7).
+4. ~~`/build` output shape~~ → **Resolved:** generated as `DB.py` + `API.py` + `main.py`, plus `finn.db` (§8.1, §8.3).
+5. ~~Static file serving~~ → **Resolved:** optional `api.static` copies configured files/directories into `/build/_static` and serves them from the generated `main.py` (`StaticFiles(..., html=True)` for directories) (§5.6).
+
+*No open questions remain; deferred features are listed in §13.*
+
+---
+
+**End of spec (v0.1 Draft).**
+>>>>>>> 6eb5e77 (cli working?)

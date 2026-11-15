@@ -29,6 +29,7 @@ from api import (  # noqa: E402
     Endpoint,
     Operation,
     Response,
+    StaticTarget,
     ValidationError,
     extract_params,
     generate,
@@ -40,6 +41,22 @@ from api import (  # noqa: E402
     statement_kind,
 )
 from database import normalize_type  # noqa: E402
+
+
+def _symlinks_supported():
+    """Return whether this platform can create symlinks."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            os.symlink(
+                os.path.join(tmp, "target"), os.path.join(tmp, "link")
+            )
+        except (OSError, NotImplementedError):
+            return False
+        return True
+
+
+SYMLINKS_SUPPORTED = _symlinks_supported()
 
 # The exact `api` block from README §12.
 EXAMPLE_API = {
@@ -916,6 +933,433 @@ class RenderMainTests(unittest.TestCase):
         self.assertNotIn("prefix=", source)
 
 
+class StaticParsingTests(unittest.TestCase):
+    """README §5.6 — optional ``api.static`` parsing and validation."""
+
+    def test_parse_static_targets(self):
+        spec = parse_api(
+            {
+                "basePath": "/api",
+                "static": {
+                    "index.html": {"file": "index.html"},
+                    "about": {"file": "about.html", "contentType": "text/html"},
+                    "/assets": {"directory": "public/assets"},
+                },
+                "endpoints": {},
+            }
+        )
+        self.assertIsInstance(spec.static["/index.html"], StaticTarget)
+        self.assertEqual(spec.static["/index.html"].path, "/index.html")
+        self.assertEqual(spec.static["/index.html"].target, "index.html")
+        self.assertFalse(spec.static["/index.html"].is_dir)
+        self.assertIsNone(spec.static["/index.html"].content_type)
+
+        self.assertEqual(spec.static["/about"].path, "/about")
+        self.assertEqual(spec.static["/about"].target, "about.html")
+        self.assertFalse(spec.static["/about"].is_dir)
+        self.assertEqual(spec.static["/about"].content_type, "text/html")
+
+        self.assertEqual(spec.static["/assets"].path, "/assets")
+        self.assertEqual(spec.static["/assets"].target, "public/assets")
+        self.assertTrue(spec.static["/assets"].is_dir)
+        self.assertIsNone(spec.static["/assets"].content_type)
+        self.assertEqual(
+            list(spec.static), ["/index.html", "/about", "/assets"]
+        )
+
+    def test_static_is_optional(self):
+        spec = parse_api({"endpoints": {"/x": {"get": "SELECT 1"}}})
+        self.assertEqual(spec.static, {})
+
+    def test_both_file_and_directory_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {"/x": {"file": "a.html", "directory": "a"}},
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./x")
+
+    def test_neither_file_nor_directory_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api({"static": {"/x": {}}, "endpoints": {}})
+        self.assertEqual(caught.exception.path, "api.static./x")
+
+    def test_empty_target_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {"static": {"/x": {"file": "   "}}, "endpoints": {}}
+            )
+        self.assertEqual(caught.exception.path, "api.static./x.file")
+
+    def test_unknown_target_key_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {"/x": {"file": "a.html", "color": "red"}},
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./x.color")
+
+    def test_unknown_top_level_value_type_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api({"static": {"/x": "index.html"}, "endpoints": {}})
+        self.assertEqual(caught.exception.path, "api.static./x")
+
+    def test_static_object_must_be_an_object(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api({"static": [], "endpoints": {}})
+        self.assertEqual(caught.exception.path, "api.static")
+
+    def test_static_path_collision_with_endpoint_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {"/x": {"file": "a.html"}},
+                    "endpoints": {"/x": {"get": "SELECT 1"}},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./x")
+
+    def test_healthz_static_path_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {"static": {"/healthz": {"file": "a.html"}}, "endpoints": {}}
+            )
+        self.assertEqual(caught.exception.path, "api.static./healthz")
+
+    def test_endpoint_overlap_under_base_path_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "basePath": "/api",
+                    "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                    "static": {"/api/users/123": {"file": "user.html"}},
+                }
+            )
+        self.assertEqual(
+            caught.exception.path, "api.static./api/users/123"
+        )
+        self.assertIn("overlaps endpoint", caught.exception.message)
+        self.assertIn("/users/{id}", caught.exception.message)
+
+    def test_endpoint_overlap_without_base_path_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "basePath": "/",
+                    "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                    "static": {"/users/123": {"file": "user.html"}},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./users/123")
+        self.assertIn("overlaps endpoint", caught.exception.message)
+
+    def test_static_outside_endpoint_namespace_accepted(self):
+        spec = parse_api(
+            {
+                "basePath": "/api",
+                "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                "static": {"/about": {"file": "about.html"}},
+            }
+        )
+        self.assertEqual(spec.static["/about"].path, "/about")
+
+    def test_deeper_static_path_under_wildcard_endpoint_accepted(self):
+        spec = parse_api(
+            {
+                "basePath": "/api",
+                "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                "static": {"/users/123/profile": {"file": "profile.html"}},
+            }
+        )
+        self.assertEqual(spec.static["/users/123/profile"].path, "/users/123/profile")
+
+    def test_deeper_static_path_without_base_path_accepted(self):
+        spec = parse_api(
+            {
+                "basePath": "/",
+                "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                "static": {"/users/123/profile": {"file": "profile.html"}},
+            }
+        )
+        self.assertEqual(spec.static["/users/123/profile"].path, "/users/123/profile")
+
+    def test_exact_static_path_under_wildcard_endpoint_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "basePath": "/",
+                    "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                    "static": {"/users/123": {"file": "user.html"}},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./users/123")
+        self.assertIn("overlaps endpoint", caught.exception.message)
+
+    def test_static_directory_shadowed_by_wildcard_endpoint_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "basePath": "/",
+                    "endpoints": {"/users/{id}": {"get": "SELECT 1"}},
+                    "static": {"/users": {"directory": "public/users"}},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./users")
+        self.assertIn("overlaps endpoint", caught.exception.message)
+
+    def test_reserved_documentation_paths_rejected(self):
+        for path in ("/docs", "/redoc", "/openapi.json"):
+            with self.subTest(path=path):
+                with self.assertRaises(ConfigError) as caught:
+                    parse_api(
+                        {
+                            "static": {path: {"file": "a.html"}},
+                            "endpoints": {},
+                        }
+                    )
+                self.assertEqual(caught.exception.path, f"api.static.{path}")
+                self.assertIn("reserved", caught.exception.message)
+
+    def test_trailing_slash_normalized(self):
+        spec = parse_api(
+            {
+                "static": {"/assets/": {"directory": "public/assets"}},
+                "endpoints": {},
+            }
+        )
+        self.assertEqual(list(spec.static), ["/assets"])
+        self.assertEqual(spec.static["/assets"].path, "/assets")
+
+    def test_trailing_slash_normalization_collides(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {
+                        "/assets/": {"directory": "public/assets"},
+                        "/assets": {"directory": "public/assets"},
+                    },
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./assets")
+
+    def test_static_root_path_overlap_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {
+                        "/": {"file": "index.html"},
+                        "/about": {"file": "about.html"},
+                    },
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./about")
+        self.assertIn("shadowed", caught.exception.message)
+
+    def test_static_directory_prefix_overlap_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {
+                        "/assets": {"directory": "public"},
+                        "/assets/logo.png": {"file": "logo.png"},
+                    },
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(
+            caught.exception.path, "api.static./assets/logo.png"
+        )
+        self.assertIn("overlapping static paths", caught.exception.message)
+
+    def test_content_type_with_directory_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {
+                        "/assets": {
+                            "directory": "public",
+                            "contentType": "text/html",
+                        }
+                    },
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(
+            caught.exception.path, "api.static./assets.contentType"
+        )
+        self.assertIn(
+            "only valid for 'file' targets", caught.exception.message
+        )
+
+    def test_static_path_with_parameter_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {"/users/{id}": {"file": "user.html"}},
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./users/{id}")
+        self.assertIn("must be literal", caught.exception.message)
+
+    def test_duplicate_static_path_after_normalization_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api(
+                {
+                    "static": {
+                        "x": {"file": "a.html"},
+                        "/x": {"file": "b.html"},
+                    },
+                    "endpoints": {},
+                }
+            )
+        self.assertEqual(caught.exception.path, "api.static./x")
+
+    def test_endpoints_still_required(self):
+        with self.assertRaises(ConfigError) as caught:
+            parse_api({"static": {"/x": {"file": "a.html"}}})
+        self.assertEqual(caught.exception.path, "api.endpoints")
+
+
+class RenderMainStaticTests(unittest.TestCase):
+    """README §5.6/§8.1 — static serving in generated ``main.py``."""
+
+    def test_directory_target_uses_staticfiles_html(self):
+        spec = parse_api(
+            {
+                "static": {"/assets": {"directory": "public/assets"}},
+                "endpoints": {},
+            }
+        )
+        source = render_main_module(spec)
+        ast.parse(source)
+        compile(source, "main.py", "exec")
+        self.assertIn(
+            "StaticFiles(directory=str(_STATIC_ROOT / 's0'), html=True)",
+            source,
+        )
+        self.assertIn('name="static_s0"', source)
+        self.assertIn("_STATIC_ROOT", source)
+
+    def test_file_target_uses_fileresponse_and_media_type(self):
+        spec = parse_api(
+            {
+                "static": {
+                    "/index.html": {"file": "index.html"},
+                    "/about": {
+                        "file": "about.html",
+                        "contentType": "text/html",
+                    },
+                },
+                "endpoints": {},
+            }
+        )
+        source = render_main_module(spec)
+        ast.parse(source)
+        compile(source, "main.py", "exec")
+        self.assertIn(
+            "FileResponse(str(_STATIC_ROOT / 's0' / 'index.html'), "
+            "media_type='text/html')",
+            source,
+        )
+        self.assertIn(
+            "FileResponse(str(_STATIC_ROOT / 's1' / 'about.html'), "
+            "media_type='text/html')",
+            source,
+        )
+        self.assertIn("_STATIC_ROOT", source)
+
+    def test_unknown_extension_falls_back_to_octet_stream(self):
+        spec = parse_api(
+            {
+                "static": {"/blob": {"file": "thing.zzz"}},
+                "endpoints": {},
+            }
+        )
+        source = render_main_module(spec)
+        ast.parse(source)
+        self.assertIn("media_type='application/octet-stream'", source)
+
+    def test_no_static_keeps_healthz_and_router(self):
+        spec = parse_api(_api(**{"/x": {"get": "SELECT 1"}}))
+        source = render_main_module(spec)
+        ast.parse(source)
+        self.assertIn('@app.get("/healthz")', source)
+        self.assertIn("app.include_router(router", source)
+        self.assertIn('__all__ = ["app"]', source)
+        self.assertNotIn("StaticFiles", source)
+        self.assertNotIn("_STATIC_ROOT", source)
+
+    def test_ast_parses_static_main_and_has_module_app(self):
+        spec = parse_api(
+            {
+                "static": {
+                    "/index.html": {"file": "index.html"},
+                    "/assets": {"directory": "public/assets"},
+                },
+                "endpoints": {},
+            }
+        )
+        source = render_main_module(spec)
+        tree = ast.parse(source)
+        compile(source, "main.py", "exec")
+        has_app = any(
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "app"
+                for target in node.targets
+            )
+            for node in tree.body
+        )
+        self.assertTrue(has_app)
+
+    def test_file_routes_emitted_before_directory_mounts(self):
+        valid = parse_api(
+            {
+                "static": {
+                    "/index.html": {"file": "index.html"},
+                    "/about": {"file": "about.html"},
+                    "/assets": {"directory": "public/assets"},
+                    "/manual": {"directory": "public/manual"},
+                },
+                "endpoints": {},
+            }
+        )
+        source = render_main_module(valid)
+        ast.parse(source)
+        compile(source, "main.py", "exec")
+        first_mount = source.index("app.mount(")
+        self.assertLess(source.index("@app.get('/index.html')"), first_mount)
+        self.assertLess(source.index("@app.get('/about')"), first_mount)
+
+        # A hand-built spec may contain "/" alongside narrower mounts (parse
+        # rejects that combination); the renderer still puts "/" last.
+        broad = ApiSpec(
+            static={
+                "/": StaticTarget(path="/", target="public", is_dir=True),
+                "/assets": StaticTarget(
+                    path="/assets", target="public/assets", is_dir=True
+                ),
+                "/manual": StaticTarget(
+                    path="/manual", target="public/manual", is_dir=True
+                ),
+            }
+        )
+        broad_source = render_main_module(broad)
+        ast.parse(broad_source)
+        assets_mount = broad_source.index("app.mount('/assets'")
+        manual_mount = broad_source.index("app.mount('/manual'")
+        root_mount = broad_source.index("app.mount('/',")
+        self.assertLess(assets_mount, manual_mount)
+        self.assertLess(manual_mount, root_mount)
+
+
 class GenerateTests(unittest.TestCase):
     """README §8.1/§8.3 — build emission + safe wrapper."""
 
@@ -991,6 +1435,269 @@ class GenerateTests(unittest.TestCase):
         # The generated layer raises the same ValidationError class DB.py
         # exports; coerced 400 behavior is exercised at app level only.
         self.assertTrue(issubclass(ValidationError, ValueError))
+
+
+class StaticGenerateTests(unittest.TestCase):
+    """README §5.6/§8.1 — copying static targets into ``build/_static``."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmpdir.cleanup)
+        self.base_dir = os.path.join(self.tmpdir.name, "config")
+        os.makedirs(os.path.join(self.base_dir, "public", "assets", "nested"))
+        with open(
+            os.path.join(self.base_dir, "index.html"), "w", encoding="utf-8"
+        ) as handle:
+            handle.write("<h1>home</h1>")
+        with open(
+            os.path.join(self.base_dir, "public", "assets", "app.js"),
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            handle.write("console.log('x');")
+        with open(
+            os.path.join(
+                self.base_dir, "public", "assets", "nested", "data.txt"
+            ),
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            handle.write("data")
+
+        self.output_dir = os.path.join(self.tmpdir.name, "build")
+        self.spec = parse_api(
+            {
+                "static": {
+                    "/index.html": {"file": "index.html"},
+                    "/assets": {"directory": "public/assets"},
+                },
+                "endpoints": {},
+            }
+        )
+
+    def _read(self, *parts):
+        with open(os.path.join(*parts), "r", encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_generate_copies_file_and_directory_targets(self):
+        paths = generate(self.output_dir, self.spec, self.base_dir)
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(
+            {os.path.basename(path) for path in paths},
+            {"API.py", "main.py"},
+        )
+
+        index_path = os.path.join(
+            self.output_dir, "_static", "s0", "index.html"
+        )
+        self.assertTrue(os.path.isfile(index_path))
+        self.assertEqual(self._read(index_path), "<h1>home</h1>")
+
+        app_js_path = os.path.join(
+            self.output_dir, "_static", "s1", "app.js"
+        )
+        self.assertTrue(os.path.isfile(app_js_path))
+        self.assertEqual(self._read(app_js_path), "console.log('x');")
+
+        nested_path = os.path.join(
+            self.output_dir, "_static", "s1", "nested", "data.txt"
+        )
+        self.assertTrue(os.path.isfile(nested_path))
+        self.assertEqual(self._read(nested_path), "data")
+
+        main_source = self._read(self.output_dir, "main.py")
+        ast.parse(main_source)
+
+    def test_generate_requires_base_dir_when_static_present(self):
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, self.spec)
+        self.assertEqual(caught.exception.path, "api.static")
+
+    def test_generate_missing_static_file_raises(self):
+        spec = parse_api(
+            {
+                "static": {"/missing": {"file": "missing.html"}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./missing")
+        self.assertIn("not found", caught.exception.message)
+
+    def test_generate_missing_static_directory_raises(self):
+        spec = parse_api(
+            {
+                "static": {"/missing": {"directory": "missing"}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./missing")
+        self.assertIn("not found", caught.exception.message)
+
+    def test_generate_rejects_traversal_target(self):
+        spec = parse_api(
+            {
+                "static": {"/evil": {"file": "../secret.txt"}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./evil")
+
+    def test_generate_recreates_static_directory_fresh(self):
+        with open(
+            os.path.join(self.base_dir, "about.html"), "w", encoding="utf-8"
+        ) as handle:
+            handle.write("<h1>about</h1>")
+        first = parse_api(
+            {
+                "static": {
+                    "/index.html": {"file": "index.html"},
+                    "/about": {"file": "about.html"},
+                },
+                "endpoints": {},
+            }
+        )
+        generate(self.output_dir, first, self.base_dir)
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    self.output_dir, "_static", "s1", "about.html"
+                )
+            )
+        )
+
+        second = parse_api(
+            {
+                "static": {"/index.html": {"file": "index.html"}},
+                "endpoints": {},
+            }
+        )
+        generate(self.output_dir, second, self.base_dir)
+        self.assertFalse(
+            os.path.exists(os.path.join(self.output_dir, "_static", "s1"))
+        )
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    self.output_dir, "_static", "s0", "index.html"
+                )
+            )
+        )
+
+    def test_generate_removes_static_when_no_static_targets(self):
+        generate(self.output_dir, self.spec, self.base_dir)
+        self.assertTrue(
+            os.path.isdir(os.path.join(self.output_dir, "_static"))
+        )
+
+        empty = parse_api({"endpoints": {}})
+        generate(self.output_dir, empty)
+        self.assertFalse(
+            os.path.exists(os.path.join(self.output_dir, "_static"))
+        )
+
+    def test_generate_missing_source_writes_no_modules(self):
+        output_dir = os.path.join(self.tmpdir.name, "fresh-build")
+        spec = parse_api(
+            {
+                "static": {"/missing": {"file": "missing.html"}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError):
+            generate(output_dir, spec, self.base_dir)
+        self.assertFalse(os.path.exists(os.path.join(output_dir, "API.py")))
+        self.assertFalse(os.path.exists(os.path.join(output_dir, "main.py")))
+
+    def test_generate_rejects_recursive_directory_copy(self):
+        build_dir = os.path.join(self.base_dir, "build")
+        spec = parse_api(
+            {
+                "static": {"/all": {"directory": "."}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(build_dir, spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./all")
+        self.assertIn("copy into itself", caught.exception.message)
+
+    @unittest.skipIf(not SYMLINKS_SUPPORTED, "symlinks are unavailable")
+    def test_generate_rejects_symlinked_directory(self):
+        outside = os.path.join(self.tmpdir.name, "outside")
+        os.makedirs(outside)
+        link = os.path.join(self.base_dir, "linked")
+        os.symlink(outside, link)
+        spec = parse_api(
+            {
+                "static": {"/linked": {"directory": "linked"}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./linked")
+        self.assertIn("symlinks", caught.exception.message)
+
+    @unittest.skipIf(not SYMLINKS_SUPPORTED, "symlinks are unavailable")
+    def test_generate_rejects_symlinked_file(self):
+        target = os.path.join(self.base_dir, "real.html")
+        with open(target, "w", encoding="utf-8") as handle:
+            handle.write("<h1>real</h1>")
+        os.symlink(target, os.path.join(self.base_dir, "link.html"))
+        spec = parse_api(
+            {
+                "static": {"/l": {"file": "link.html"}},
+                "endpoints": {},
+            }
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./l")
+        self.assertIn("symlinks", caught.exception.message)
+
+    @unittest.skipIf(not SYMLINKS_SUPPORTED, "symlinks are unavailable")
+    def test_generate_rejects_symlink_inside_directory_tree(self):
+        os.symlink(
+            os.path.join(self.base_dir, "index.html"),
+            os.path.join(self.base_dir, "public", "assets", "link.html"),
+        )
+        with self.assertRaises(ConfigError) as caught:
+            generate(self.output_dir, self.spec, self.base_dir)
+        self.assertEqual(caught.exception.path, "api.static./assets")
+        self.assertIn("symlinks", caught.exception.message)
+
+    def test_api_init_success_with_static(self):
+        self.assertEqual(
+            api_init(self.output_dir, self.spec, self.base_dir), (True, None)
+        )
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(self.output_dir, "_static", "s0", "index.html")
+            )
+        )
+
+    def test_api_init_missing_static_file_returns_config_error(self):
+        spec = parse_api(
+            {
+                "static": {"/missing": {"file": "missing.html"}},
+                "endpoints": {},
+            }
+        )
+        self.assertEqual(
+            api_init(self.output_dir, spec, self.base_dir),
+            (False, API_INIT_CONFIG),
+        )
+
+    def test_api_init_static_without_base_dir_returns_config_error(self):
+        self.assertEqual(
+            api_init(self.output_dir, self.spec), (False, API_INIT_CONFIG)
+        )
 
 
 if __name__ == "__main__":

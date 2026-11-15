@@ -181,7 +181,7 @@ Save MUST produce:
 
 ### 4.6 Crash draft (P1)
 
-- Autosave a recovery draft to `<project>/.finn-studio-draft.jsonc`.
+- Autosave a recovery draft to `<project>/.finn-studio-draft.json`.
 - On next open, offer Restore or Discard.
 - The draft is Studio-owned, is never passed to the CLI, and is excluded from
   external-change detection.
@@ -238,7 +238,7 @@ Three steps: template, location, review.
 - Review: shows the exact `finn init` command and the resulting path.
 - Create invokes `finn init --json`. On success, open the editor at the created path.
 - On `FINN-E0061`, show the diagnostic and offer another directory; an explicit
-  "Overwrite finn.jsonc" action maps to `--force` after typed confirmation.
+  "Overwrite finn.json" action maps to `--force` after typed confirmation.
 - States: idle, creating (indeterminate progress), success, error (diagnostic +
   retry). If the CLI is unavailable, Create is disabled.
 
@@ -464,7 +464,7 @@ No effect is implied.
 
 - Debounced `finn validate --json` after edits (300 ms; implementation may tune).
 - Because the CLI reads a file, Studio writes the in-memory tree to
-  `.finn-studio-validate.jsonc` in the project directory, validates that path, and
+  `.finn-studio-validate.json` in the project directory, validates that path, and
   removes the file afterward. One validation runs at a time; stale results are
   discarded by sequence number.
 - Grouped by stage: parse, structural, semantic, build, runtime. Each row shows
@@ -645,7 +645,7 @@ relies on CLI validation.
 
 ## 10. Acceptance criteria
 
-1. A project created through the wizard yields a `finn.jsonc` that passes
+1. A project created through the wizard yields a `finn.json` that passes
    `finn validate`.
 2. A two-table schema with a foreign key can be authored entirely in the GUI, saved,
    and validated.
@@ -660,7 +660,7 @@ relies on CLI validation.
    exercising all fields round-trips and validates.
 8. Invalid edits cannot be built: severity-error diagnostics disable Build/Run and
    identify the offending path.
-9. Any save round-trip leaves valid JSONC on disk with canonical formatting, key
+9. Any save round-trip leaves valid JSON on disk with canonical formatting, key
    order, and preserved author ordering.
 10. `version !== 1` opens read-only; no save/build/run is possible.
 11. With the CLI missing or too old, editing and saving still work and

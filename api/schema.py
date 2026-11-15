@@ -27,6 +27,7 @@ __all__ = [
     "Operation",
     "Param",
     "Response",
+    "StaticTarget",
     "parse_api",
     "statement_kind",
     "extract_params",
@@ -40,7 +41,8 @@ METHODS: Tuple[str, ...] = ("get", "post", "put", "patch", "delete")
 # FastAPI derives these from ``get``; configuring them is ignored (README §5.1).
 _IGNORED_METHODS = ("head", "options")
 
-_API_KEYS = ("basePath", "endpoints", "cors")
+_API_KEYS = ("basePath", "endpoints", "cors", "static")
+_STATIC_TARGET_KEYS = ("file", "directory", "contentType")
 _OPERATION_KEYS = (
     "sql",
     "params",
@@ -140,12 +142,23 @@ class Endpoint:
 
 
 @dataclass
+class StaticTarget:
+    """One static file or directory served by the generated app."""
+
+    path: str
+    target: str
+    is_dir: bool
+    content_type: Optional[str] = None
+
+
+@dataclass
 class ApiSpec:
     """The fully validated, normalized ``api`` block."""
 
     base_path: str = "/"
     endpoints: Dict[str, Endpoint] = field(default_factory=dict)
     cors: object = None
+    static: Dict[str, StaticTarget] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -679,6 +692,192 @@ def _parse_endpoint(path: str, raw_endpoint: object) -> Endpoint:
     return Endpoint(path=path, operations=operations)
 
 
+def _is_static_prefix(prefix: str, path: str) -> bool:
+    """Return whether ``prefix`` is a URL-path prefix of ``path``."""
+
+    return prefix == "/" or path == prefix or path.startswith(prefix + "/")
+
+
+def _url_segments(path: str) -> List[str]:
+    """Return the non-empty URL segments of ``path``."""
+
+    return [segment for segment in path.split("/") if segment]
+
+
+def _is_wildcard_segment(segment: str) -> bool:
+    """Return whether ``segment`` is an endpoint ``{name}`` wildcard."""
+
+    return segment.startswith("{") and segment.endswith("}")
+
+
+def _effective_endpoint_path(base_path: str, path: str) -> str:
+    """Return the absolute URL path an endpoint is registered under."""
+
+    if base_path and base_path != "/":
+        return base_path + path
+    return path
+
+
+def _overlaps_endpoint(
+    static_path: str, endpoint_path: str, is_dir: bool
+) -> bool:
+    """Return whether a static path overlaps an endpoint URL pattern.
+
+    Comparison is segment-based.  Static segments are always literal; only the
+    endpoint side may contain a ``{name}`` wildcard, which matches any one
+    static segment.  An overlap occurs when either the endpoint captures the
+    static path exactly (same segment count), or the static target is a
+    directory mounted at a prefix of a longer endpoint path.
+    """
+
+    static_segments = _url_segments(static_path)
+    endpoint_segments = _url_segments(endpoint_path)
+
+    def match(static_segment: str, endpoint_segment: str) -> bool:
+        return _is_wildcard_segment(endpoint_segment) or (
+            static_segment == endpoint_segment
+        )
+
+    if len(static_segments) == len(endpoint_segments) and all(
+        match(static_segment, endpoint_segment)
+        for static_segment, endpoint_segment in zip(
+            static_segments, endpoint_segments
+        )
+    ):
+        return True
+
+    if (
+        is_dir
+        and len(endpoint_segments) > len(static_segments)
+        and all(
+            match(static_segment, endpoint_segment)
+            for static_segment, endpoint_segment in zip(
+                static_segments, endpoint_segments
+            )
+        )
+    ):
+        return True
+
+    return False
+
+
+def _parse_static(
+    raw_static: object,
+    endpoints: Dict[str, Endpoint],
+    base_path: str,
+) -> Dict[str, StaticTarget]:
+    """Validate the optional ``api.static`` block (README §5.6)."""
+
+    raw = _require_object(raw_static, "api.static", "static")
+    static: Dict[str, StaticTarget] = {}
+    for raw_path, raw_target in raw.items():
+        if not isinstance(raw_path, str):
+            raise ConfigError("api.static", "static URL paths must be strings")
+        path = raw_path.strip()
+        if not path:
+            raise ConfigError("api.static", "static URL paths must not be empty")
+        if not path.startswith("/"):
+            path = "/" + path
+        if path != "/" and path.endswith("/"):
+            path = path[:-1]
+        if "{" in path or "}" in path:
+            raise ConfigError(
+                f"api.static.{path}",
+                "static URL paths must be literal; path parameters like "
+                "{id} are not supported",
+            )
+        if path in static:
+            raise ConfigError(
+                f"api.static.{path}",
+                f"duplicate static URL path {path!r}",
+            )
+        if path == "/healthz":
+            raise ConfigError(
+                f"api.static.{path}",
+                "static URL path '/healthz' is reserved for the liveness probe",
+            )
+        if path in ("/docs", "/redoc", "/openapi.json"):
+            raise ConfigError(
+                f"api.static.{path}",
+                f"static URL path {path!r} is reserved for FastAPI's built-in "
+                "documentation routes",
+            )
+        base = f"api.static.{path}"
+        target = _require_object(raw_target, base, "static target")
+        _check_keys(target, _STATIC_TARGET_KEYS, base)
+
+        has_file = "file" in target
+        has_directory = "directory" in target
+        if has_file and has_directory:
+            raise ConfigError(
+                base,
+                "static target must specify exactly one of 'file' or "
+                "'directory', not both",
+            )
+        if not has_file and not has_directory:
+            raise ConfigError(
+                base,
+                "static target must specify exactly one of 'file' or "
+                "'directory'",
+            )
+        if has_directory and "contentType" in target:
+            raise ConfigError(
+                f"{base}.contentType",
+                "contentType overrides MIME type and is only valid for "
+                "'file' targets",
+            )
+        is_dir = has_directory
+
+        for endpoint_path in endpoints:
+            effective_path = _effective_endpoint_path(base_path, endpoint_path)
+            if _overlaps_endpoint(path, effective_path, is_dir):
+                raise ConfigError(
+                    f"api.static.{path}",
+                    f"static URL path {path!r} overlaps endpoint "
+                    f"{endpoint_path!r} (registered at {effective_path!r}); "
+                    "endpoint routes are registered before static targets",
+                )
+
+        key = "file" if has_file else "directory"
+        raw_value = target[key]
+        if not isinstance(raw_value, str):
+            raise ConfigError(f"{base}.{key}", "must be a string")
+        if not raw_value.strip():
+            raise ConfigError(f"{base}.{key}", "must not be empty")
+
+        content_type: Optional[str] = None
+        if "contentType" in target:
+            raw_content_type = target["contentType"]
+            if not isinstance(raw_content_type, str):
+                raise ConfigError(f"{base}.contentType", "must be a string")
+            if not raw_content_type.strip():
+                raise ConfigError(f"{base}.contentType", "must not be empty")
+            content_type = raw_content_type
+
+        static[path] = StaticTarget(
+            path=path,
+            target=raw_value,
+            is_dir=has_directory,
+            content_type=content_type,
+        )
+
+    paths = list(static)
+    for position, first in enumerate(paths):
+        for second in paths[position + 1:]:
+            if _is_static_prefix(first, second) or _is_static_prefix(
+                second, first
+            ):
+                longer = first if len(first) > len(second) else second
+                shorter = second if longer == first else first
+                raise ConfigError(
+                    f"api.static.{longer}",
+                    f"static path {longer!r} is shadowed by the "
+                    f"directory/mount {shorter!r}; overlapping static paths "
+                    "are not allowed",
+                )
+    return static
+
+
 def parse_api(api_config: dict) -> ApiSpec:
     """Validate and normalize the config's ``api`` object (README §5)."""
 
@@ -724,4 +923,15 @@ def parse_api(api_config: dict) -> ApiSpec:
             )
         endpoints[path] = _parse_endpoint(path, raw_endpoint)
 
-    return ApiSpec(base_path=base_path, endpoints=endpoints, cors=cors)
+    static: Dict[str, StaticTarget] = {}
+    if "static" in api_config:
+        static = _parse_static(
+            api_config["static"], endpoints, base_path
+        )
+
+    return ApiSpec(
+        base_path=base_path,
+        endpoints=endpoints,
+        cors=cors,
+        static=static,
+    )

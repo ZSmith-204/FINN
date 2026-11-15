@@ -14,6 +14,8 @@ Route behavior mirrors the spec:
 
 from __future__ import annotations
 
+import mimetypes
+import os
 import re
 from typing import List, Optional
 
@@ -23,6 +25,7 @@ from .schema import (
     ApiSpec,
     Operation,
     Param,
+    StaticTarget,
     _RESERVED_NAMES,
     _scan_sql,
     statement_kind,
@@ -101,9 +104,10 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
+__STATIC_IMPORTS__
 from API import router
 
+__STATIC_ROOT__
 app = FastAPI()
 app.include_router(router__PREFIX__)
 
@@ -128,8 +132,7 @@ async def _validation_handler(request, exc):
 def healthz():
     """Basic liveness probe (README §10.5)."""
     return {"status": "ok"}
-
-
+__STATIC__
 __all__ = ["app"]
 '''
 
@@ -537,6 +540,83 @@ def render_api_module(spec: ApiSpec) -> str:
     return "\n\n".join(parts).rstrip() + "\n"
 
 
+def _static_imports(spec: ApiSpec) -> str:
+    """Return the extra imports/helpers needed when static targets exist."""
+
+    if not spec.static:
+        return ""
+    return "\n".join(
+        (
+            "import os",
+            "from pathlib import Path",
+            "",
+            "from fastapi.responses import FileResponse",
+            "from fastapi.staticfiles import StaticFiles",
+        )
+    )
+
+
+def _static_root(spec: ApiSpec) -> str:
+    """Return the ``_STATIC_ROOT`` module-level assignment, if needed."""
+
+    if not spec.static:
+        return ""
+    return '_STATIC_ROOT = Path(os.path.dirname(__file__)) / "_static"\n'
+
+
+def _static_media_type(target: StaticTarget) -> str:
+    """Return the configured or guessed MIME type for a file target."""
+
+    if target.content_type:
+        return target.content_type
+    guessed = mimetypes.guess_type(target.target)[0]
+    return guessed or "application/octet-stream"
+
+
+def _render_static_routes(spec: ApiSpec) -> str:
+    """Render static routes so file handlers are registered before mounts.
+
+    ``<N>`` stays the target's position in ``spec.static.values()`` (the build
+    copy uses the same index), but emission order is independent: file targets
+    first, then directory mounts from most-specific to least-specific so a
+    broad mount cannot shadow a narrower one.
+    """
+
+    if not spec.static:
+        return ""
+
+    entries = list(enumerate(spec.static.values()))
+    files = [(index, target) for index, target in entries if not target.is_dir]
+    directories = [
+        (index, target) for index, target in entries if target.is_dir
+    ]
+    directories.sort(key=lambda item: len(item[1].path), reverse=True)
+
+    blocks: List[str] = []
+    for index, target in files:
+        basename = os.path.basename(target.target)
+        blocks.append(
+            "@app.get(%r)\n"
+            "def _static_%d():\n"
+            '    """Serve the configured static file."""\n'
+            "    return FileResponse(str(_STATIC_ROOT / %r / %r), media_type=%r)"
+            % (
+                target.path,
+                index,
+                "s%d" % index,
+                basename,
+                _static_media_type(target),
+            )
+        )
+    for index, target in directories:
+        blocks.append(
+            "app.mount(%r, StaticFiles(directory=str(_STATIC_ROOT / %r), "
+            'html=True), name="static_s%d")'
+            % (target.path, "s%d" % index, index)
+        )
+    return "\n\n".join(blocks)
+
+
 def render_main_module(spec: ApiSpec) -> str:
     """Render the ``main.py`` entrypoint (README §8.1)."""
 
@@ -546,4 +626,12 @@ def render_main_module(spec: ApiSpec) -> str:
     if len(prefix) > 1:
         prefix = prefix.rstrip("/") or "/"
     prefix_arg = "" if prefix == "/" else ", prefix=" + repr(prefix)
-    return _MAIN_TEMPLATE.replace("__PREFIX__", prefix_arg)
+    static = _render_static_routes(spec)
+    if static:
+        static = "\n" + static + "\n"
+    return (
+        _MAIN_TEMPLATE.replace("__PREFIX__", prefix_arg)
+        .replace("__STATIC_IMPORTS__", _static_imports(spec))
+        .replace("__STATIC_ROOT__", _static_root(spec))
+        .replace("__STATIC__", static)
+    )

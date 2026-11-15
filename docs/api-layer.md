@@ -28,7 +28,7 @@ the detail — exactly like `db_init` on the database side.
 from api import (
     parse_api,
     statement_kind, extract_params, split_statements,
-    ApiSpec, Endpoint, Operation, Param, Response, METHODS,
+    ApiSpec, Endpoint, Operation, Param, Response, StaticTarget, METHODS,
     render_api_module, render_main_module,
     generate, api_init,
     API_INIT_CONFIG, API_INIT_FILE, API_INIT_UNKNOWN,
@@ -46,11 +46,12 @@ As with the DB layer, `from api ...` works when the repo root is on `sys.path`.
 
 | Class | Fields |
 |---|---|
-| `ApiSpec` | `base_path="/"`, `endpoints: dict`, `cors=None` (reserved, accepted+ignored) |
+| `ApiSpec` | `base_path="/"`, `endpoints: dict`, `cors=None` (reserved, accepted+ignored), `static: dict` (optional static targets) |
 | `Endpoint` | `path`, `operations: dict[method, Operation]` |
 | `Operation` | `method`, `sql`, `params: dict`, `response: Response`, `multi=False`, `description=None`, `authentication=None`, `rate_limit=None` (last two reserved) |
 | `Param` | `name`, `source` ∈ {path,query,body,header}, `fin_type=None`, `required=False`, `default=None` |
 | `Response` | `shape` ∈ {list,single,none}, `key=None`, `columns=None`, `renames=None`, `paginate=False`, `blob_format=None` |
+| `StaticTarget` | `path` (normalized URL path), `target` (config-relative file/dir path), `is_dir`, `content_type=None` |
 
 `statement_kind(sql)` classifies SELECT/INSERT/UPDATE/DELETE (leading `WITH`→SELECT,
 `REPLACE`→INSERT; anything else → `OTHER`). `extract_params(sql)` lists `:name`/`@name`/`$name`
@@ -73,7 +74,12 @@ except ConfigError as err:
 `multi: true`, `paginate` requires `shape=list`, and every `:name` resolves to a source:
 path `{seg}` → `path`; declared `params` source; otherwise `query` (GET/DELETE) or `body`
 (POST/PUT/PATCH). Reserved generated names (`page`, `pageSize`, `payload`, `params`, `result`,
-`_value`) are rejected.
+`_value`) are rejected. The optional `static` block is validated into `StaticTarget` entries
+(README §5.6): each target needs exactly one of `file`/`directory`, and URL paths are normalized
+(a leading `/` is added and one trailing `/` is stripped). Static paths may not overlap endpoint
+routes (endpoints are compared under `basePath`, with `{segment}` matching one static segment)
+or the reserved `/docs`, `/redoc`, `/openapi.json`, and `/healthz` routes. Static URL paths must
+be literal (no `{params}`), may not prefix-overlap each other, and `contentType` is file-only.
 
 ---
 
@@ -91,17 +97,33 @@ so it must sit next to the generated `DB.py`. `main.py` builds `app`, mounts the
 If `uvicorn build.main:app` can't resolve `API`/`DB`, run `cd build && uvicorn main:app`
 (README §8.1).
 
+**Static serving.** When `api.static` is configured, `main.py` also defines
+`_STATIC_ROOT = Path(os.path.dirname(__file__)) / "_static"`, mounts each directory target
+with `StaticFiles(..., html=True)`, and serves each file target with `FileResponse`. MIME
+types are guessed at codegen time from the file extension (override with `contentType`, which
+is valid for file targets only), so `main.py` stays a thin bootstrap. The targets themselves
+are copied into `_static/` at build time, which is recreated fresh each build (see §5 below).
+
 ---
 
 ## 5. Build emission + the `api_init` entry
 
 ```python
-written = generate("build", api_spec)     # -> [<abs path to API.py>, <abs path to main.py>]
-ok, code = api_init("build", api_spec)    # -> (True, None) or (False, "FILE_ERROR"/"CONFIG_ERROR"/"UNKNOWN")
+written = generate("build", api_spec, base_dir=config_dir)   # -> [<abs path to API.py>, <abs path to main.py>]
+ok, code = api_init("build", api_spec, base_dir=config_dir)  # -> (True, None) or (False, "FILE_ERROR"/"CONFIG_ERROR"/"UNKNOWN")
 ```
 
-`generate` `mkdir -p`s the output dir and writes both files UTF-8. `api_init` wraps it, never
-raises, and logs via the `api` logger. Error codes mirror `db_init`:
+`generate` `mkdir -p`s the output dir and writes both files UTF-8. When `api.static` is
+non-empty, `base_dir` (the config file's directory) is **required**; each static target is
+resolved relative to it and copied into a temporary staging directory inside the output dir
+(`build/_static_tmp_*/s<N>/`, files keep their basename; directories are copied recursively).
+Missing sources and unsafe targets (absolute paths, `..` traversal, symlinks anywhere in a
+directory tree, or a directory that would copy into itself) raise `ConfigError` scoped to
+`api.static.<path>`. All targets are validated before either module is written. After a
+successful copy and module write, the old `_static` is removed and the staging directory is
+renamed into place (`_static`), so a failed copy leaves the previous build untouched. A build
+with no static targets also removes any existing `_static` (no stale artifacts).
+`api_init` wraps it, never raises, and logs via the `api` logger. Error codes mirror `db_init`:
 `API_INIT_CONFIG="CONFIG_ERROR"`, `API_INIT_FILE="FILE_ERROR"`, `API_INIT_UNKNOWN="UNKNOWN"`.
 
 ---
@@ -109,18 +131,23 @@ raises, and logs via the `api` logger. Error codes mirror `db_init`:
 ## 6. Full Finn-in-one-place flow (for the CLI team)
 
 ```python
+import os
 from database import parse_database, bootstrap, render_db_module
 from api import parse_api, api_init
 
+config_dir = os.path.dirname(os.path.abspath(config_path))  # config file directory
 db    = parse_database(config["database"])   # validate schema
 bootstrap("build/finn.db", db)               # create/verify SQLite (+ init once)
 open("build/DB.py", "w").write(render_db_module(db))
 
-api   = parse_api(config["api"])             # validate routes
-ok, code = api_init("build", api)            # write build/API.py + build/main.py
+api   = parse_api(config["api"])             # validate routes + static targets
+ok, code = api_init("build", api, base_dir=config_dir)  # write build/API.py + build/main.py (+ _static/)
 if not ok:
     raise SystemExit(f"api_init failed: {code}")
 ```
+
+`base_dir` is only needed when `api.static` is present; without it, a static-enabled config
+fails with `CONFIG_ERROR` (README §5.6).
 
 ---
 

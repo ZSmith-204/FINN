@@ -102,7 +102,7 @@ FK referential actions (`FK_ACTIONS`, `normalize_fk_action`): `NO ACTION`, `REST
 ```python
 from database import parse_database, ConfigError
 
-database_block = config["database"]      # the JSON/JSONC object
+database_block = config["database"]      # the JSON object
 try:
     spec = parse_database(database_block)
 except ConfigError as err:

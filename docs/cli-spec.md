@@ -8,7 +8,7 @@
 
 ## 1. Scope
 
-FINN reads **one** JSON/JSONC config file (README §2) and produces a self-contained
+FINN reads **one** JSON config file (README §2) and produces a self-contained
 `/build` directory — FastAPI source plus an initialized SQLite database (README §8.1).
 This document specifies the `finn` command-line interface that performs that work.
 
@@ -16,7 +16,7 @@ Core commands:
 
 | Command | Purpose | README |
 |---|---|---|
-| `finn init [TARGET_DIR]` | Scaffold a new project by writing a starter `finn.jsonc` | new (this spec) |
+| `finn init [TARGET_DIR]` | Scaffold a new project by writing a starter `finn.json` | new (this spec) |
 | `finn build [CONFIG]` | Validate the config and emit `/build` (sources + database + manifest) | §8.1, §8.3 |
 | `finn run [CONFIG]` | Build if stale, then serve the generated app | §8.2 |
 | `finn validate [CONFIG]` | Run parse/structural/semantic validation only; write nothing | §2.2 |
@@ -47,17 +47,14 @@ All file-taking commands resolve the config in this precedence order:
 
 1. `--config PATH` (explicit)
 2. `$FINN_CONFIG`
-3. `./finn.jsonc`
-4. `./finn.json`
+3. `./finn.json`
 
 Rules:
 
-- If **both** `finn.jsonc` and `finn.json` exist in the search directory, `finn.jsonc`
-  wins and a warning diagnostic (`FINN-W0001`) is emitted.
 - If no config is found: `FINN-E0011`, exit 1.
-- Parsing follows README §2.1: UTF-8 (BOM tolerated and stripped), `//` and `/* */`
-  comments stripped, trailing commas stripped, one top-level object required.
-  Syntactic failures are `FINN-E0012` with a filled `span` when available.
+- Parsing follows README §2.1: strict JSON, UTF-8 (BOM tolerated and stripped),
+  one top-level object required. Syntactic failures are `FINN-E0012` with a
+  filled `span` when available.
 
 ## 4. Diagnostics
 
@@ -102,7 +99,7 @@ Codes are stable; the table may grow. Unknown codes MUST be displayed, never dro
 | Code | Stage | Cause |
 |---|---|---|
 | `FINN-E0011` | parse | Config file not found |
-| `FINN-E0012` | parse | JSONC parse error (span filled when available) |
+| `FINN-E0012` | parse | JSON parse error (span filled when available) |
 | `FINN-E0021` | structural | Structural validation error (README §2.2 stage 2) |
 | `FINN-E0031` | semantic | Semantic validation error (README §2.2 stage 3) |
 | `FINN-E0041` | build | Build I/O error (unreadable/unwritable path, missing build dir for `run --no-build`) |
@@ -117,7 +114,6 @@ Warnings never block and never change the exit code.
 
 | Code | Cause |
 |---|---|
-| `FINN-W0001` | Both `finn.jsonc` and `finn.json` found; using `finn.jsonc` |
 | `FINN-W0002` | Declared `head`/`options` operation ignored (README §5.1) |
 | `FINN-W0003` | Method/statement mismatch, e.g. `delete` containing `SELECT` (README §5.5) |
 
@@ -141,7 +137,10 @@ Notes:
 ### 6.1 `finn init [TARGET_DIR]`
 
 Scaffolds a new project. FINN is a **single-file-config** project (README §1.2), so
-`init` creates ONLY the config file — never `build/`, never a database.
+`init` creates ONLY the config file — never `build/`, never a database. Third-party
+dependencies are declared in `requirements.txt` at the repo root; `init` (in human TTY
+mode) offers to install them, but this never writes files into the project directory
+beyond `finn.json`.
 
 **Flags**
 
@@ -155,39 +154,52 @@ Scaffolds a new project. FINN is a **single-file-config** project (README §1.2)
 **Target resolution**
 
 - Default target directory is the current directory; the positional `TARGET_DIR`
-  names a directory (created if missing). The output file is always `<dir>/finn.jsonc`.
-- If `<dir>/finn.jsonc` **or** `<dir>/finn.json` already exists: `FINN-E0061`, exit 2,
+  names a directory (created if missing). The output file is always `<dir>/finn.json`.
+- If `<dir>/finn.json` already exists: `FINN-E0061`, exit 2,
   naming the offending file, hint `--force`. With `--force`, only the file `init`
   would write is overwritten.
 
 **Post-write output (human)**
 
 ```
-Wrote finn.jsonc (template: example)
+Wrote finn.json (template: example)
 Next steps:
+  pip install -r requirements.txt
   finn build
   finn run
 ```
 
+The `pip install -r requirements.txt` step appears only when `requirements.txt`
+is present next to the CLI, and is rendered as a path relative to the current
+directory. When both `stdin` and `stdout` are terminals, `init` then prompts:
+
+```
+Install dependencies from requirements.txt now? [y/N]:
+```
+
+Answering `y`/`yes` runs `python -m pip install -r <requirements.txt>` using the
+interpreter that is running FINN. A declined or failed install never changes
+`init`'s exit status (`0` once the config has been written).
+
 **`--json`**
 
+`--json` output is unchanged and never triggers the interactive prompt:
+
 ```json
-{ "ok": true, "template": "example", "path": "finn.jsonc", "created": true }
+{ "ok": true, "template": "example", "path": "finn.json", "created": true }
 ```
 
 #### 6.1.1 Template `example` (default)
 
-The full worked example from README §12, verbatim, emitted as JSONC with a one-line
-header comment:
+The full worked example from README §12, verbatim, emitted as plain JSON:
 
-```jsonc
-// FINN starter config (template: example) — see README.md §12
-{ /* ...exact README §12 content... */ }
+```json
+{}
 ```
 
 #### 6.1.2 Template `minimal`
 
-```jsonc
+```json
 {
   "version": 1,
   "database": {
@@ -217,7 +229,7 @@ header comment:
 
 #### 6.1.3 Template `blank`
 
-```jsonc
+```json
 {
   "version": 1,
   "meta": {},
@@ -253,7 +265,7 @@ alters existing tables (README §10.3).
 | Stage | Work | Failure |
 |---|---|---|
 | 0 | Locate config (§3) | `E0011` |
-| 1 | Parse JSONC (README §2.1) | `E0012` |
+| 1 | Parse JSON (README §2.1) | `E0012` |
 | 2 | Structural validation (README §2.2) | `E0021` |
 | 3 | Semantic validation (README §2.2): FK targets, parameter resolution, statement classification; **DDL in endpoints rejected** (README §5.5) | `E0031` |
 | 4 | Emit `main.py`, `API.py`, `DB.py` into `<out>` | `E0041` |
@@ -278,7 +290,7 @@ Generated-source rules (README §8.3):
 **Summary (human)**
 
 ```
-Built finn.jsonc → build/  (0.4s)
+Built finn.json → build/  (0.4s)
   tables: 2   columns: 7   indexes: 1   views: 0
   endpoints: 3   operations: 4
   database: build/finn.db (created)
@@ -295,7 +307,7 @@ Built finn.jsonc → build/  (0.4s)
 ```json
 {
   "ok": true,
-  "config": "finn.jsonc",
+  "config": "finn.json",
   "outDir": "build",
   "artifacts": [
     { "path": "build/main.py", "bytes": 1229, "action": "created" },
@@ -443,7 +455,7 @@ Deferred features are tracked in README §13.
 ## 10. Acceptance criteria
 
 1. Each `init` template (`example`, `minimal`, `blank`) passes `finn validate` immediately after `finn init`.
-2. `finn init` refuses to overwrite an existing `finn.jsonc`/`finn.json` without `--force` (`FINN-E0061`, exit 2).
+2. `finn init` refuses to overwrite an existing `finn.json` without `--force` (`FINN-E0061`, exit 2).
 3. `finn build` emits `main.py`, `API.py`, `DB.py`, `<database.file>`, and `.finn-build.json`; every artifact is listed in the manifest.
 4. An invalid config exits non-zero with a path-scoped diagnostic and produces **no** partial build output.
 5. Rebuilding against an existing compatible database is idempotent and non-destructive; `db.created` is `false` and `init` does not re-run.

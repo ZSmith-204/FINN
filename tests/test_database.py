@@ -1735,13 +1735,13 @@ class DummyDatabaseTests(unittest.TestCase):
 
     Unlike every other test here, the artifact is deliberately *not* thrown
     away: it stays on disk so API/GUI/CLI developers have a realistic database
-    to inspect.  The ``finn.jsonc`` next to it records the exact seed config.
+    to inspect.  The ``finn.json`` next to it records the exact seed config.
     Both files are generated at run time and are not committed.
     """
 
     def test_generate_dummy_database(self):
         db_path = os.path.join(FIXTURES_DIR, "dummy.db")
-        config_path = os.path.join(FIXTURES_DIR, "finn.jsonc")
+        config_path = os.path.join(FIXTURES_DIR, "finn.json")
 
         # Deterministic regeneration: drop any previous DB (and its sidecars)
         # so the seed data is always fresh.
