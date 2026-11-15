@@ -1,7 +1,13 @@
 # Vim swapfiles
 *.sw[a-p]
 
+# python stuff
 __pycache__/
 *.pyc
 tests/fixtures/dummy.db
 tests/fixtures/finn.json
+bin/
+
+# artifacts
+dist/
+build/
