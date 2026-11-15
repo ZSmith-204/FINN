@@ -1,5 +1,5 @@
 ![FINN -- FINN Is Not NGINX](images/logo.png)
-
+## FINN (is not NGINX)
 FINN reads **one** configuration file (JSON) and produces a **fully
 functional FastAPI backend backed by SQLite**, both as runnable source and as an
 initialized database. The config describes two things:
