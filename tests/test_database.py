@@ -44,9 +44,15 @@ from finn.database import (  # noqa: E402
     quote_ident,
     render_db_module,
     schema_ddl,
+    serialize_row,
     serialize_rows,
     table_ddl,
     topological_table_order,
+)
+
+# Runtime-generated, uncommitted artifacts (see DummyDatabaseTests).
+FIXTURES_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "fixtures"
 )
 
 # The exact `database` block from README §12.
@@ -83,6 +89,72 @@ EXAMPLE_WITH_INIT["init"] = [
     "INSERT INTO users (name, email) VALUES ('Grace', 'grace@example.com')",
     "INSERT INTO orders (user_id, total, status) VALUES (1, 10.0, 'open')",
 ]
+
+
+# A persistent, realistic dummy database for API/GUI/CLI developers to poke at.
+# It exercises every canonical type, two FK relations, and rich seed data; the
+# `database` block only (no other config sections).
+DUMMY_CONFIG = {
+    "file": "dummy.db",
+    "tables": {
+        "users": {
+            "columns": {
+                "id": {"type": "integer", "primaryKey": True, "autoincrement": True},
+                "name": {"type": "text"},
+                "email": {"type": "text", "unique": True},
+                "is_active": {"type": "boolean", "default": True},
+                "profile": {"type": "json", "nullable": True},
+                "created_at": {"type": "datetime", "default": "datetime('now')"},
+            }
+        },
+        "posts": {
+            "columns": {
+                "id": {"type": "integer", "primaryKey": True, "autoincrement": True},
+                "user_id": {
+                    "type": "integer",
+                    "references": "users.id",
+                    "onDelete": "CASCADE",
+                },
+                "title": {"type": "text"},
+                "body": {"type": "text"},
+                "tags": {"type": "json", "nullable": True},
+                "published": {"type": "boolean", "default": False},
+                "published_at": {"type": "datetime", "nullable": True},
+            }
+        },
+        "attachments": {
+            "columns": {
+                "id": {"type": "integer", "primaryKey": True, "autoincrement": True},
+                "post_id": {
+                    "type": "integer",
+                    "references": "posts.id",
+                    "onDelete": "CASCADE",
+                },
+                "label": {"type": "text"},
+                "data": {"type": "blob", "nullable": True},
+            }
+        },
+    },
+    "init": [
+        "INSERT INTO users (name, email, is_active, profile, created_at) "
+        "VALUES ('Ada Lovelace', 'ada@example.com', 1, "
+        "'{\"role\": \"admin\", \"age\": 36}', '2026-01-15T09:00:00Z')",
+        "INSERT INTO users (name, email, is_active, profile, created_at) "
+        "VALUES ('Grace Hopper', 'grace@example.com', 1, "
+        "'{\"role\": \"author\", \"age\": 85}', '2026-02-03T12:30:00Z')",
+        "INSERT INTO users (name, email, is_active) "
+        "VALUES ('Alan Turing', 'alan@example.com', 0)",
+        "INSERT INTO posts (user_id, title, body, tags, published, published_at) "
+        "VALUES (1, 'Hello world', 'First post', '[\"intro\",\"meta\"]', 1, "
+        "'2026-01-16T08:00:00Z')",
+        "INSERT INTO posts (user_id, title, body, published) "
+        "VALUES (2, 'Draft notes', 'Still writing', 0)",
+        "INSERT INTO posts (user_id, title, body, tags, published) "
+        "VALUES (1, 'Second post', 'Another body', '[\"followup\"]', 1)",
+        "INSERT INTO attachments (post_id, label, data) VALUES "
+        "(1, 'cover.txt', X'68656C6C6F'), (1, 'notes.txt', NULL)",
+    ],
+}
 
 
 def example():
@@ -1656,6 +1728,126 @@ class DottedNameValidationTests(unittest.TestCase):
             caught.exception.path, "database.tables.t.columns.a.b"
         )
         self.assertIn("must not contain '.'", caught.exception.message)
+
+
+class DummyDatabaseTests(unittest.TestCase):
+    """Generates a durable, richly seeded ``tests/fixtures/dummy.db``.
+
+    Unlike every other test here, the artifact is deliberately *not* thrown
+    away: it stays on disk so API/GUI/CLI developers have a realistic database
+    to inspect.  The ``finn.jsonc`` next to it records the exact seed config.
+    Both files are generated at run time and are not committed.
+    """
+
+    def test_generate_dummy_database(self):
+        db_path = os.path.join(FIXTURES_DIR, "dummy.db")
+        config_path = os.path.join(FIXTURES_DIR, "finn.jsonc")
+
+        # Deterministic regeneration: drop any previous DB (and its sidecars)
+        # so the seed data is always fresh.
+        os.makedirs(FIXTURES_DIR, exist_ok=True)
+        for suffix in ("", "-wal", "-shm"):
+            stale = db_path + suffix
+            if os.path.exists(stale):
+                os.remove(stale)
+
+        spec = parse_database(DUMMY_CONFIG)
+        self.assertTrue(bootstrap(db_path, spec))
+        self.assertTrue(os.path.isfile(db_path))
+
+        connection = connect(db_path)
+        try:
+            expected_counts = {"users": 3, "posts": 3, "attachments": 2}
+            for table, expected in expected_counts.items():
+                with self.subTest(table=table):
+                    self.assertEqual(
+                        connection.execute(
+                            "SELECT COUNT(*) FROM " + table
+                        ).fetchone()[0],
+                        expected,
+                    )
+
+            posts_fk = connection.execute(
+                "PRAGMA foreign_key_list(posts)"
+            ).fetchall()
+            self.assertEqual(len(posts_fk), 1)
+            self.assertEqual(posts_fk[0]["from"], "user_id")
+            self.assertEqual(posts_fk[0]["table"], "users")
+            self.assertEqual(posts_fk[0]["to"], "id")
+            self.assertEqual(posts_fk[0]["on_delete"], "CASCADE")
+
+            attachments_fk = connection.execute(
+                "PRAGMA foreign_key_list(attachments)"
+            ).fetchall()
+            self.assertEqual(len(attachments_fk), 1)
+            self.assertEqual(attachments_fk[0]["from"], "post_id")
+            self.assertEqual(attachments_fk[0]["table"], "posts")
+            self.assertEqual(attachments_fk[0]["to"], "id")
+
+            # Rich canonical-type round trip: booleans, embedded JSON,
+            # datetimes, plain NULLs, and base64 blobs.
+            ada = serialize_row(
+                connection.execute(
+                    "SELECT * FROM users WHERE email = 'ada@example.com'"
+                ).fetchone(),
+                spec.column_types("users"),
+            )
+            self.assertIs(ada["is_active"], True)
+            self.assertIsInstance(ada["profile"], dict)
+            self.assertEqual(ada["profile"]["role"], "admin")
+            self.assertEqual(ada["profile"]["age"], 36)
+            self.assertIsInstance(ada["created_at"], str)
+            self.assertTrue(ada["created_at"].startswith("2026-01-15T09:00:00"))
+
+            alan = serialize_row(
+                connection.execute(
+                    "SELECT * FROM users WHERE email = 'alan@example.com'"
+                ).fetchone(),
+                spec.column_types("users"),
+            )
+            self.assertIs(alan["is_active"], False)
+            self.assertIsNone(alan["profile"])
+
+            draft = serialize_row(
+                connection.execute(
+                    "SELECT * FROM posts WHERE title = 'Draft notes'"
+                ).fetchone(),
+                spec.column_types("posts"),
+            )
+            self.assertIs(draft["published"], False)
+            self.assertIsNone(draft["published_at"])
+
+            published = serialize_row(
+                connection.execute(
+                    "SELECT * FROM posts WHERE title = 'Hello world'"
+                ).fetchone(),
+                spec.column_types("posts"),
+            )
+            self.assertIsInstance(published["tags"], list)
+            self.assertEqual(published["tags"], ["intro", "meta"])
+
+            cover = serialize_row(
+                connection.execute(
+                    "SELECT * FROM attachments WHERE label = 'cover.txt'"
+                ).fetchone(),
+                spec.column_types("attachments"),
+            )
+            self.assertEqual(cover["data"], "$base64:aGVsbG8=")
+
+            notes = serialize_row(
+                connection.execute(
+                    "SELECT * FROM attachments WHERE label = 'notes.txt'"
+                ).fetchone(),
+                spec.column_types("attachments"),
+            )
+            self.assertIsNone(notes["data"])
+        finally:
+            connection.close()
+
+        # Keep the generating config alongside the DB for reproducibility.
+        with open(config_path, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(DUMMY_CONFIG, indent=2))
+        self.assertTrue(os.path.isfile(config_path))
 
 
 if __name__ == "__main__":

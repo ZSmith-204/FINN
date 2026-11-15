@@ -1,0 +1,95 @@
+{
+  "file": "dummy.db",
+  "tables": {
+    "users": {
+      "columns": {
+        "id": {
+          "type": "integer",
+          "primaryKey": true,
+          "autoincrement": true
+        },
+        "name": {
+          "type": "text"
+        },
+        "email": {
+          "type": "text",
+          "unique": true
+        },
+        "is_active": {
+          "type": "boolean",
+          "default": true
+        },
+        "profile": {
+          "type": "json",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "datetime",
+          "default": "datetime('now')"
+        }
+      }
+    },
+    "posts": {
+      "columns": {
+        "id": {
+          "type": "integer",
+          "primaryKey": true,
+          "autoincrement": true
+        },
+        "user_id": {
+          "type": "integer",
+          "references": "users.id",
+          "onDelete": "CASCADE"
+        },
+        "title": {
+          "type": "text"
+        },
+        "body": {
+          "type": "text"
+        },
+        "tags": {
+          "type": "json",
+          "nullable": true
+        },
+        "published": {
+          "type": "boolean",
+          "default": false
+        },
+        "published_at": {
+          "type": "datetime",
+          "nullable": true
+        }
+      }
+    },
+    "attachments": {
+      "columns": {
+        "id": {
+          "type": "integer",
+          "primaryKey": true,
+          "autoincrement": true
+        },
+        "post_id": {
+          "type": "integer",
+          "references": "posts.id",
+          "onDelete": "CASCADE"
+        },
+        "label": {
+          "type": "text"
+        },
+        "data": {
+          "type": "blob",
+          "nullable": true
+        }
+      }
+    }
+  },
+  "init": [
+    "INSERT INTO users (name, email, is_active, profile, created_at) VALUES ('Ada Lovelace', 'ada@example.com', 1, '{\"role\": \"admin\", \"age\": 36}', '2026-01-15T09:00:00Z')",
+    "INSERT INTO users (name, email, is_active, profile, created_at) VALUES ('Grace Hopper', 'grace@example.com', 1, '{\"role\": \"author\", \"age\": 85}', '2026-02-03T12:30:00Z')",
+    "INSERT INTO users (name, email, is_active) VALUES ('Alan Turing', 'alan@example.com', 0)",
+    "INSERT INTO posts (user_id, title, body, tags, published, published_at) VALUES (1, 'Hello world', 'First post', '[\"intro\",\"meta\"]', 1, '2026-01-16T08:00:00Z')",
+    "INSERT INTO posts (user_id, title, body, published) VALUES (2, 'Draft notes', 'Still writing', 0)",
+    "INSERT INTO posts (user_id, title, body, tags, published) VALUES (1, 'Second post', 'Another body', '[\"followup\"]', 1)",
+    "INSERT INTO attachments (post_id, label, data) VALUES (1, 'cover.txt', X'68656C6C6F'), (1, 'notes.txt', NULL)"
+  ]
+}
