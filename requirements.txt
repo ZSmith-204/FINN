@@ -4,6 +4,8 @@
 # (which pulls in starlette, pydantic, and anyio) and `uvicorn[standard]`.
 # Dev/test only: FastAPI's TestClient, used for end-to-end tests, needs
 # `httpx`; it is not required to run FINN itself or the stdlib unit tests.
+# GUI: FINN Studio (`finn_studio.py`) needs `PyQt6` (QtCore/QtGui/QtWidgets).
 fastapi==0.163.1
 uvicorn[standard]==0.54.0
 httpx==0.28.1
+PyQt6==6.9.0
