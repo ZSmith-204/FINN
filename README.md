@@ -1,6 +1,6 @@
 ![FINN -- FINN Is Not NGINX](images/logo.png)
 
-FINN reads **one** configuration file (JSON or JSONC) and produces a **fully
+FINN reads **one** configuration file (JSON or JSON) and produces a **fully
 functional FastAPI backend backed by SQLite**, both as runnable source and as an
 initialized database. The config describes two things:
 
@@ -30,7 +30,7 @@ containing both the SQLite database and the FastAPI source.
 
 | Term | Meaning |
 |---|---|
-| **Config** | The single input file (`finn.json` / `finn.jsonc`). |
+| **Config** | The single input file (`finn.json`). |
 | **Build** | The generated `/build` output: FastAPI source + `finn.db`. |
 | **Table** | A `database` entry describing one relation. |
 | **Column** | A field of a table, with a name, type, and optional constraints. |
@@ -44,7 +44,7 @@ containing both the SQLite database and the FastAPI source.
 
 ### 2.1 Accepted extensions and parsing
 
-- Extensions: `.json` and `.jsonc`.
+- Extensions: `.json`.
 - JSONC strips `//` line comments, `/* ... */` block comments, and trailing commas before parsing.
 - Encoding: UTF-8 (BOM tolerated and stripped).
 - One top-level **object** is required. Anything else is a parse error.
@@ -53,7 +53,7 @@ containing both the SQLite database and the FastAPI source.
 
 The config must conform to the schema in §3. Validation stages:
 
-1. **Syntactic** — valid JSON/JSONC.
+1. **Syntactic** — valid JSON.
 2. **Structural** — correct shape, allowed keys, correct types.
 3. **Semantic** — referential integrity: every FK target exists; every endpoint's SQL references only declared parameters; every parameter maps to a real, allowed column/operator context; SQL parses (see §5.3).
 
