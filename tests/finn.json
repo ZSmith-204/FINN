@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "database": {
+    "file": "finn.db",
+    "tables": {
+      "users": {
+        "columns": {
+          "id": {
+            "type": "integer",
+            "primaryKey": true,
+            "autoincrement": true
+          },
+          "name": {
+            "type": "text"
+          },
+          "email": {
+            "type": "text",
+            "unique": true
+          },
+          "created_at": {
+            "type": "datetime",
+            "default": "datetime('now')"
+          }
+        }
+      }
+    }
+  },
+  "api": {
+    "basePath": "/api",
+    "endpoints": {
+      "/users": {
+        "get": "SELECT id, name, email FROM users",
+        "post": "INSERT INTO users (name, email) VALUES (:name, :email)"
+      }
+    }
+  }
+}

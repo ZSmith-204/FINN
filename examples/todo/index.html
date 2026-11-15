@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FINN &middot; Relational Todo</title>
+<style>
+  :root { font-family: system-ui, -apple-system, sans-serif; background:#f6f7f9; color:#1b1f24; }
+  body { max-width: 760px; margin: 0 auto; padding: 24px; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color:#667; font-size: 13px; margin: 0 0 20px; }
+  .bar { display:flex; gap:8px; margin-bottom:16px; }
+  input[type=text] { flex:1; padding:8px 10px; border:1px solid #d0d7de; border-radius:6px; font-size:14px; }
+  button { padding:8px 12px; border:1px solid #d0d7de; background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+  button:hover { background:#f0f3f6; }
+  button.primary { background:#1f6feb; color:#fff; border-color:#1f6feb; }
+  .list-card { border:1px solid #d0d7de; border-radius:8px; padding:14px; margin-bottom:14px; background:#fff; }
+  .list-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .list-head h2 { margin:0; font-size:17px; flex:1; }
+  .list-head .meta { color:#999; font-size:12px; }
+  ul.todos { list-style:none; margin:0; padding:0; }
+  li { display:flex; align-items:center; gap:8px; padding:4px 0; }
+  li label { flex:1; }
+  li.done label { text-decoration:line-through; color:#999; }
+  .x { color:#b3362f; border:none; background:none; cursor:pointer; font-size:15px; }
+  pre { background:#0d1117; color:#c9d1d9; padding:12px; border-radius:6px; overflow:auto; font-size:12px; }
+  .hidden { display:none; }
+  .toast { position:fixed; top:12px; right:12px; background:#b3362f; color:#fff; padding:8px 12px; border-radius:6px; font-size:13px; }
+</style>
+</head>
+<body>
+  <h1>FINN &middot; Relational Todo</h1>
+  <p class="sub">One <code>finn.json</code> &#8594; FastAPI + SQLite backend. Todos belong to lists via a foreign key with <code>ON DELETE CASCADE</code>.</p>
+
+  <div class="bar">
+    <input type="text" id="listTitle" placeholder="New list name&hellip;">
+    <button class="primary" id="addList">+ Add list</button>
+    <button id="showJoin">SHOW JOIN VIEW</button>
+  </div>
+
+  <div id="lists"></div>
+  <pre class="hidden" id="joinOut"></pre>
+
+  <script>
+    const base = "/api";
+    const $ = (s) => document.querySelector(s);
+
+    async function api(path, opts={}) {
+      const r = await fetch(base + path, { headers: {"Content-Type":"application/json"}, ...opts });
+      if (!r.ok) throw new Error("HTTP " + r.status + ": " + (await r.text()));
+      if (r.status === 204) return null;
+      return r.json();
+    }
+
+    function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+    function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2500); }
+    async function safe(fn){ try { await fn(); } catch (e) { toast(e.message); } }
+
+    async function render() {
+      const lists = await api("/lists");
+      const root = $("#lists");
+      root.innerHTML = "";
+      for (const list of lists) {
+        const todos = await api("/lists/" + list.id + "/todos");
+        const card = document.createElement("div");
+        card.className = "list-card";
+        card.innerHTML =
+          '<div class="list-head">' +
+            '<h2>' + esc(list.title) + '</h2>' +
+            '<span class="meta">#' + list.id + ' &middot; ' + todos.length + ' item(s)</span>' +
+            '<button class="x" data-del-list="' + list.id + '" title="Delete list (cascades to todos)">&#10005;</button>' +
+          '</div>' +
+          '<ul class="todos">' +
+            todos.map(t =>
+              '<li class="' + (t.done ? "done" : "") + '">' +
+                '<input type="checkbox" data-toggle="' + t.id + '"' + (t.done ? ' checked' : '') + '>' +
+                '<label>' + esc(t.title) + '</label>' +
+                '<button class="x" data-del-todo="' + t.id + '" title="Delete">&#10005;</button>' +
+              '</li>').join("") +
+          '</ul>' +
+          '<div class="bar" style="margin:8px 0 0;">' +
+            '<input type="text" class="todoTitle" placeholder="Nested task&hellip;">' +
+            '<button class="addTodo" data-list="' + list.id + '">Add</button>' +
+          '</div>';
+        root.appendChild(card);
+      }
+    }
+
+    $("#addList").onclick = () => safe(async () => {
+      const title = $("#listTitle").value.trim();
+      if (!title) return;
+      await api("/lists", { method:"POST", body: JSON.stringify({title}) });
+      $("#listTitle").value = "";
+      await render();
+    });
+
+    document.body.addEventListener("click", (e) => safe(async () => {
+      if (e.target.matches("[data-del-list]")) {
+        await api("/lists/" + e.target.dataset.delList, { method:"DELETE" });
+        await render();
+      } else if (e.target.matches("[data-del-todo]")) {
+        await api("/todos/" + e.target.dataset.delTodo, { method:"DELETE" });
+        await render();
+      } else if (e.target.matches(".addTodo")) {
+        const input = e.target.previousElementSibling;
+        const title = input.value.trim();
+        if (!title) return;
+        const listId = Number(e.target.dataset.list);
+        await api("/todos", { method:"POST", body: JSON.stringify({ list_id: listId, title }) });
+        await render();
+      } else if (e.target.matches("[data-toggle]")) {
+        await api("/todos/" + e.target.dataset.toggle, { method:"PATCH", body: JSON.stringify({ done: e.target.checked }) });
+        await render();
+      }
+    }));
+
+    $("#showJoin").onclick = () => safe(async () => {
+      const out = $("#joinOut");
+      if (out.classList.contains("hidden")) {
+        out.textContent = JSON.stringify(await api("/board"), null, 2);
+        out.classList.remove("hidden");
+      } else {
+        out.classList.add("hidden");
+      }
+    });
+
+    (async () => { try { await render(); } catch (e) { toast(e.message); } })();
+  </script>
+</body>
+</html>

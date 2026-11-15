@@ -1,0 +1,31 @@
+{
+  "finnVersion": "0.1.0",
+  "configSha256": "22baa1a31efb0b9f7b32e0c715009e9318fda3320f9595580dd78d28d066ab60",
+  "builtAt": "2026-11-15T21:47:51Z",
+  "artifacts": [
+    {
+      "file": "main.py",
+      "sha256": "82d0b675a783b96d11460eeaf62f231730f7708f25f843e6cfef24bc34c1c72b",
+      "bytes": 958
+    },
+    {
+      "file": "API.py",
+      "sha256": "5c653fb941fb6221973558b99c9ed2c7fa248872ddd9dc02cba085bf5256f4ca",
+      "bytes": 2658
+    },
+    {
+      "file": "DB.py",
+      "sha256": "1c70106537ebb0b295edbf4fd25e2dac0de2d3429ed7d572f6ca005736e5d9f4",
+      "bytes": 12774
+    },
+    {
+      "file": "finn.db",
+      "sha256": "e8ffba50221471da326f28590734f3aa59481e5952cd923d9ff089ed3640f53b",
+      "bytes": 16384
+    }
+  ],
+  "db": {
+    "file": "finn.db",
+    "created": false
+  }
+}
