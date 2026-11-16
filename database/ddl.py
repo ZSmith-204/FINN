@@ -1,8 +1,8 @@
 """DDL emission for a validated :class:`database.schema.DatabaseSpec`.
 
-The emitted SQL is SQLite dialect (README §4).  Tables are generated in a
+The emitted SQL is SQLite dialect (reference.md §4).  Tables are generated in a
 dependency-safe (topological) order so foreign keys always resolve regardless
-of the author's declaration order; indexes and views follow (README §10.1).
+of the author's declaration order; indexes and views follow (reference.md §10.1).
 
 Every identifier is quoted with :func:`quote_ident`; no client/user input ever
 reaches this module.

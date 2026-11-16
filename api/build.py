@@ -2,7 +2,7 @@
 
 Mirrors :func:`database.db_init`-style layering: :func:`generate` raises on
 failure, while :func:`api_init` wraps it for callers that only need a
-``(success, error_code)`` pair (README §8.1/§8.3).
+``(success, error_code)`` pair (reference.md §8.1/§8.3).
 """
 
 from __future__ import annotations

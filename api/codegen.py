@@ -47,7 +47,7 @@ _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _PATH_SEGMENT_RE = re.compile(r"\{([^{}]*)\}")
 _RESERVED_PAGINATION_PARAMS = ("__pageSize", "__offset")
 
-_MODULE_HEADER = '''"""FINN-generated HTTP layer (README §5, §6, §7, §8.3).
+_MODULE_HEADER = '''"""FINN-generated HTTP layer (reference.md §5, §6, §7, §8.3).
 
 One route per configured endpoint/operation.  SQL is parameterized; this
 module imports the generated data layer (``DB.py``) and no FINN runtime.
@@ -76,7 +76,7 @@ router = APIRouter()
 
 
 def _fail(status: int, code: str, message: str, detail: object = None) -> JSONResponse:
-    """Build the uniform FINN error body (README §7)."""
+    """Build the uniform FINN error body (reference.md §7)."""
     return JSONResponse(
         status_code=status,
         content={"error": {"code": code, "message": message, "detail": detail}},
@@ -97,7 +97,7 @@ def _coerce(name, fin_type, value):
             str(exc),
         )'''
 
-_MAIN_TEMPLATE = '''"""FINN-generated FastAPI entrypoint (README §8.1)."""
+_MAIN_TEMPLATE = '''"""FINN-generated FastAPI entrypoint (reference.md §8.1)."""
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ app.include_router(router__PREFIX__)
 
 @app.exception_handler(RequestValidationError)
 async def _validation_handler(request, exc):
-    """Return the FINN error contract for request validation (README §7)."""
+    """Return the FINN error contract for request validation (reference.md §7)."""
     first = exc.errors()[0] if exc.errors() else {}
     return JSONResponse(
         status_code=400,
@@ -130,7 +130,7 @@ async def _validation_handler(request, exc):
 
 @app.get("/healthz")
 def healthz():
-    """Basic liveness probe (README §10.5)."""
+    """Basic liveness probe (reference.md §10.4)."""
     return {"status": "ok"}
 __STATIC__
 __all__ = ["app"]
@@ -199,13 +199,13 @@ def _validate_operation(path: str, method: str, operation: Operation) -> str:
         raise ConfigError(
             sql_path,
             "unsupported SQL statement; only SELECT/INSERT/UPDATE/DELETE are "
-            "allowed in endpoints (README §5.5)",
+            "allowed in endpoints (reference.md §5.5)",
         )
     if len(statements) > 1 and not operation.multi:
         raise ConfigError(
             sql_path,
             'multiple ;-separated statements require "multi": true '
-            "(README §5.4)",
+            "(reference.md §5.4)",
         )
     kind = kinds[0]
 
@@ -223,17 +223,17 @@ def _validate_operation(path: str, method: str, operation: Operation) -> str:
             raise ConfigError(
                 f"api.endpoints.{path}.{method}.response.paginate",
                 "pagination cannot be combined with multi-statement "
-                "operations (README §5.4/§6.4)",
+                "operations (reference.md §5.4/§6.4)",
             )
         if operation.response.shape != "list":
             raise ConfigError(
                 f"api.endpoints.{path}.{method}.response.paginate",
-                'pagination requires response.shape "list" (README §6.4)',
+                'pagination requires response.shape "list" (reference.md §6.4)',
             )
         if kind != "SELECT":
             raise ConfigError(
                 f"api.endpoints.{path}.{method}.response.paginate",
-                "pagination requires a SELECT statement (README §6.4)",
+                "pagination requires a SELECT statement (reference.md §6.4)",
             )
         reserved = set(_RESERVED_PAGINATION_PARAMS)
         if any(name in reserved for name in names) or any(
@@ -242,13 +242,13 @@ def _validate_operation(path: str, method: str, operation: Operation) -> str:
             raise ConfigError(
                 sql_path,
                 "the bind parameters :__pageSize and :__offset are reserved "
-                "for pagination (README §6.4)",
+                "for pagination (reference.md §6.4)",
             )
         if any(name in ("page", "pageSize") for name in operation.params):
             raise ConfigError(
                 f"api.endpoints.{path}.{method}.params",
                 "the query parameters 'page' and 'pageSize' are reserved by "
-                "pagination (README §6.4)",
+                "pagination (reference.md §6.4)",
             )
 
     for param in operation.params.values():
@@ -261,7 +261,7 @@ def _validate_operation(path: str, method: str, operation: Operation) -> str:
             raise ConfigError(
                 f"api.endpoints.{path}.{method}.params.{param.name}",
                 f"parameter name {param.name!r} is reserved and collides "
-                "with a generated name (README §5.3)",
+                "with a generated name (reference.md §5.3)",
             )
         if param.source not in ("path", "query", "body", "header"):
             raise ConfigError(
@@ -278,7 +278,7 @@ def _validate_operation(path: str, method: str, operation: Operation) -> str:
             raise ConfigError(
                 f"api.endpoints.{path}.{method}",
                 f"path parameter segment {{{segment}}} is reserved and "
-                "collides with a generated name (README §5.3)",
+                "collides with a generated name (reference.md §5.3)",
             )
     return kind
 
@@ -343,7 +343,7 @@ def _render_route(
     decorator += ")"
     lines: List[str] = [decorator]
     lines.append(f"def {name}({', '.join(signature)}):")
-    lines.append('    """Generated route (README §5)."""')
+    lines.append('    """Generated route (reference.md §5)."""')
     lines.append("    params = {}")
 
     # Path parameters are always present (FastAPI guarantees it, §5.3).
@@ -471,7 +471,7 @@ def _render_route(
         '        return _fail(500, "INTERNAL_ERROR", "Internal server error.")'
     )
 
-    # --- response shaping (README §5.5 / §6.2) -----------------------------
+    # --- response shaping (reference.md §5.5 / §6.2) -----------------------------
     if kind == "SELECT":
         lines.append('    rows = result["rows"]')
         if response.columns is not None:
@@ -529,7 +529,7 @@ def _render_route(
 
 
 def render_api_module(spec: ApiSpec) -> str:
-    """Render the complete ``API.py`` source for ``spec`` (README §8.3)."""
+    """Render the complete ``API.py`` source for ``spec`` (reference.md §8.3)."""
 
     parts: List[str] = [_MODULE_HEADER]
     used: set = set()
@@ -618,7 +618,7 @@ def _render_static_routes(spec: ApiSpec) -> str:
 
 
 def render_main_module(spec: ApiSpec) -> str:
-    """Render the ``main.py`` entrypoint (README §8.1)."""
+    """Render the ``main.py`` entrypoint (reference.md §8.1)."""
 
     prefix = spec.base_path or "/"
     if not prefix.startswith("/"):

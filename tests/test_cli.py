@@ -1,6 +1,6 @@
 """CLI tests for FINN (stdlib ``unittest``, not pytest).
 
-Covers ``docs/cli-spec.md``: JSON parsing, ``init`` templates and overwrite
+Covers ``docs/cli-layer.md``: JSON parsing, ``init`` templates and overwrite
 protection, ``validate``/``build`` pipelines, manifests, schema conflicts,
 staleness, usage errors, and the ``run`` port pre-check.
 
@@ -909,7 +909,7 @@ def _free_port():
 
 
 class RunServerTests(EnvIsolatedTestCase):
-    """End-to-end ``run`` coverage (acceptance criteria 7/8, spec §6.3)."""
+    """End-to-end ``run`` coverage (acceptance criteria 7/8, cli-layer.md §7)."""
 
     @unittest.skipUnless(HAVE_SERVER, "uvicorn and fastapi are not installed")
     def test_run_serves_healthz_and_stops_cleanly(self):
@@ -1025,7 +1025,7 @@ class RunServerTests(EnvIsolatedTestCase):
                 self.assertEqual(
                     bad_lines,
                     [],
-                    "stdout must be strict NDJSON (spec §6.3); "
+                    "stdout must be strict NDJSON (cli-layer.md §7); "
                     "non-conforming lines: {!r}".format(bad_lines),
                 )
             finally:

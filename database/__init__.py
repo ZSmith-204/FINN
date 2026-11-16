@@ -1,6 +1,6 @@
 """FINN database layer: schema parsing, DDL, bootstrap, and ``DB.py`` codegen.
 
-This package has no HTTP/API concerns (README §4, §6.3, §7, §8.3).
+This package has no HTTP/API concerns (reference.md §4, §6.3, §7, §8.3).
 """
 
 from __future__ import annotations

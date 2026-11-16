@@ -1,7 +1,8 @@
 # FINN Database Layer — Integration Guide
 
 **Audience:** the API team and the GUI/CLI team.
-**Companion spec:** the top-level [`README.md`](../README.md) is authoritative; the sections
+**Sibling layers:** [`api-layer.md`](api-layer.md) (HTTP, above), [`cli-layer.md`](cli-layer.md) (CLI, above), [`gui-layer.md`](gui-layer.md) (GUI, above).
+**Companion spec:** [`reference.md`](reference.md) is authoritative; the sections
 this package implements are §4 (schema), §4.2 (types), §4.3 (relations), §4.6 (`init`),
 §6.3 (serialization), §7 (SQLite error mapping), §8.3 (generated `DB.py`), §10.2/§10.3
 (connections + re-boot).

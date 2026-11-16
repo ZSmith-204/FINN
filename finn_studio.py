@@ -4,8 +4,8 @@
 The CLI is the single source of behavioral truth: this app never re-implements
 validation, build, DDL, or serving.  It drives the CLI as a subprocess using
 ``--json`` and edits the single JSON config in memory, writing it back
-canonically (docs/gui-spec.md S4.2).  The spec marks host tech non-normative
-(S2.1); this implementation is a desktop host rather than a browser host.
+canonically (docs/gui-layer.md).  This implementation is a desktop host rather
+than a browser host.
 
 Run:  python finn_studio.py [PROJECT_DIR]
 """
@@ -55,7 +55,7 @@ MIN_CLI_VERSION = "0.1.0"
 
 
 # ---------------------------------------------------------------------------
-# Canonical serialization (docs/gui-spec.md S4.2)
+# Canonical serialization (docs/gui-layer.md)
 # ---------------------------------------------------------------------------
 
 _KEY_ORDER = {
@@ -180,7 +180,7 @@ def _at_least(version: str, minimum: str) -> bool:
 
 
 def cli_script_path() -> Path:
-    return Path(__file__).resolve().parent / "cli.py"
+    return Path(__file__).resolve().parent / "finn_cli.py"
 
 
 def default_cli_command() -> List[str]:
@@ -766,7 +766,7 @@ class JsonTreeWidget(QTreeWidget):
                 self, APP_NAME, "This key is required and cannot be deleted.")
             return
         name = str(path[-1])
-        # block deleting the last column of a table (README S4.1)
+        # block deleting the last column of a table (reference.md §4.1)
         if len(path) >= 2 and isinstance(path[-2], str) and path[-2] == "columns":
             table_columns = get_by_path(self.model, path[:-1])
             if len(table_columns) <= 1:

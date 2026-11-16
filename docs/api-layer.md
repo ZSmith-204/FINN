@@ -1,10 +1,10 @@
 # FINN API Layer — Integration Guide
 
 **Audience:** the CLI/build team (and anyone wiring FINN together).
-**Companion spec:** [`README.md`](../README.md) §5 (api/endpoints/operations/params), §5.3 (binding),
+**Companion spec:** [`reference.md`](reference.md) §5 (api/endpoints/operations/params), §5.3 (binding),
 §5.5 (statement kinds → HTTP semantics), §6.2/§6.4 (response shaping + pagination),
 §7 (error contract), §8.1/§8.3 (generated `API.py`/`main.py`).
-**Sibling layer:** see [`docs/database-layer.md`](database-layer.md) — this package mirrors it.
+**Sibling layers:** [`database-layer.md`](database-layer.md) (data, below), [`cli-layer.md`](cli-layer.md) (CLI, above), [`gui-layer.md`](gui-layer.md) (GUI, above).
 
 This package turns the `api` block of the config into a runnable FastAPI app. It parses
 and validates the config, and generates two **self-contained** source files (`API.py`
@@ -75,7 +75,7 @@ except ConfigError as err:
 path `{seg}` → `path`; declared `params` source; otherwise `query` (GET/DELETE) or `body`
 (POST/PUT/PATCH). Reserved generated names (`page`, `pageSize`, `payload`, `params`, `result`,
 `_value`) are rejected. The optional `static` block is validated into `StaticTarget` entries
-(README §5.6): each target needs exactly one of `file`/`directory`, and URL paths are normalized
+(reference.md §5.6): each target needs exactly one of `file`/`directory`, and URL paths are normalized
 (a leading `/` is added and one trailing `/` is stripped). Static paths may not overlap endpoint
 routes (endpoints are compared under `basePath`, with `{segment}` matching one static segment)
 or the reserved `/docs`, `/redoc`, `/openapi.json`, and `/healthz` routes. Static URL paths must
@@ -95,7 +95,7 @@ so it must sit next to the generated `DB.py`. `main.py` builds `app`, mounts the
 `basePath` (omitting the `prefix` argument when `basePath` is `/`), registers a
 `RequestValidationError → 400` handler, and exposes `GET /healthz`.
 If `uvicorn build.main:app` can't resolve `API`/`DB`, run `cd build && uvicorn main:app`
-(README §8.1).
+(reference.md §8.1).
 
 **Static serving.** When `api.static` is configured, `main.py` also defines
 `_STATIC_ROOT = Path(os.path.dirname(__file__)) / "_static"`, mounts each directory target
@@ -147,7 +147,7 @@ if not ok:
 ```
 
 `base_dir` is only needed when `api.static` is present; without it, a static-enabled config
-fails with `CONFIG_ERROR` (README §5.6).
+fails with `CONFIG_ERROR` (reference.md §5.6).
 
 ---
 

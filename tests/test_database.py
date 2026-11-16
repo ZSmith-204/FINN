@@ -1,6 +1,6 @@
 """Database-layer tests for FINN (stdlib ``unittest``, not pytest).
 
-Covers README §4 (schema parsing/relations), §4.6 (init on first creation),
+Covers reference.md §4 (schema parsing/relations), §4.6 (init on first creation),
 §6.3 (serialization), §7 (SQLite error mapping), and §8.3 (generated DB.py).
 
 Run from the repository root:
@@ -55,7 +55,7 @@ FIXTURES_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "fixtures"
 )
 
-# The exact `database` block from README §12.
+# The exact `database` block from reference.md §11.
 EXAMPLE_DATABASE = {
     "file": "finn.db",
     "tables": {

@@ -1,7 +1,7 @@
 """Parsing, validation, and normalization of FINN's ``database`` config block.
 
 This module models only the SQLite schema described by ``database`` in the FINN
-config (README §4): tables, columns, relations, indexes, views, and init
+config (reference.md §4): tables, columns, relations, indexes, views, and init
 statements.  It has no HTTP/API concerns.
 
 Everything is validated strictly and fail-fast: unknown keys, unknown types,
@@ -38,7 +38,7 @@ __all__ = [
 
 
 class ConfigError(Exception):
-    """A config validation failure scoped to a JSON path (README §2.2)."""
+    """A config validation failure scoped to a JSON path (reference.md §2.2)."""
 
     def __init__(self, path: str, message: str) -> None:
         self.path = path
@@ -50,7 +50,7 @@ class ConfigError(Exception):
 
 
 class SchemaConflictError(ConfigError):
-    """The on-disk schema conflicts with the config (README §10.3).
+    """The on-disk schema conflicts with the config (reference.md §10.3).
 
     Raised during re-boot of an existing database; bootstrap never drops or
     alters existing objects.
@@ -58,7 +58,7 @@ class SchemaConflictError(ConfigError):
 
 
 # ---------------------------------------------------------------------------
-# Canonical types (README §4.2)
+# Canonical types (reference.md §4.2)
 # ---------------------------------------------------------------------------
 
 TYPE_ALIASES: Dict[str, str] = {
@@ -324,7 +324,7 @@ def _column_path(table_name: str, column_name: str) -> str:
 
 
 def parse_database(database_config: dict) -> DatabaseSpec:
-    """Validate and normalize the config's ``database`` object (README §4)."""
+    """Validate and normalize the config's ``database`` object (reference.md §4)."""
 
     if not isinstance(database_config, dict):
         raise ConfigError("database", "must be a JSON object")
@@ -342,7 +342,7 @@ def parse_database(database_config: dict) -> DatabaseSpec:
         raise ConfigError(
             "database.file",
             "must be a file name only (no path separators); the database is "
-            "always emitted inside /build (README §4.7)",
+            "always emitted inside /build (reference.md §4.7)",
         )
 
     tables_raw = database_config.get("tables")
@@ -445,7 +445,7 @@ def parse_database(database_config: dict) -> DatabaseSpec:
             raise ConfigError(path, "must not be an empty SQL statement")
         init.append(statement)
 
-    # --- resolve relations (README §4.3) -----------------------------------
+    # --- resolve relations (reference.md §4.3) -----------------------------------
     for (table_name, column_name), raw_reference in pending_refs.items():
         column = tables[table_name].columns[column_name]
         column.references = _resolve_reference(
@@ -560,7 +560,7 @@ def _parse_table(
                 "a WITHOUT ROWID table requires a primary key",
             )
 
-    # --- autoincrement rules (README §4.2) --------------------------------
+    # --- autoincrement rules (reference.md §4.2) --------------------------------
     for column in columns.values():
         if not column.autoincrement:
             continue
@@ -672,7 +672,7 @@ def _parse_column(
             raw_column["description"], f"{path}.description", allow_blank=True
         )
 
-    # --- default: preserve literal-vs-SQL distinction (README §4.2) -------
+    # --- default: preserve literal-vs-SQL distinction (reference.md §4.2) -------
     default: object = None
     default_is_sql = False
     if "default" in raw_column and raw_column["default"] is not None:
@@ -715,7 +715,7 @@ def _parse_column(
             raw_column["references"], f"{path}.references"
         ).strip()
 
-    # README §4.3: onDelete/onUpdate are "optional, with references".
+    # reference.md §4.3: onDelete/onUpdate are "optional, with references".
     if raw_reference is None:
         if has_on_delete:
             raise ConfigError(

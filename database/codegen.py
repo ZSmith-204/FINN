@@ -1,4 +1,4 @@
-"""Generation of the standalone ``DB.py`` data-layer module (README §8.3).
+"""Generation of the standalone ``DB.py`` data-layer module (reference.md §8.3).
 
 ``DB.py`` contains the schema DDL, connection factory, ``init`` statements,
 value serialization, and SQLite error mapping.  It is deliberately
@@ -19,7 +19,7 @@ __all__ = ["render_db_module"]
 _MODULE_TEMPLATE = '''"""FINN-generated database layer.
 
 Schema (DDL + init statements), connection handling, value serialization
-(README §6.3), and SQLite error mapping (README §7) for the generated
+(reference.md §6.3), and SQLite error mapping (reference.md §7) for the generated
 application.  Standalone: standard library only, no FINN runtime required.
 """
 
@@ -52,7 +52,7 @@ __COLUMN_TYPES_BY_NAME__
 
 
 def connect(path=None, *, create=True, busy_timeout_ms=BUSY_TIMEOUT_MS):
-    """Open a SQLite connection with the mandated pragmas (README §10.2)."""
+    """Open a SQLite connection with the mandated pragmas (reference.md §10.2)."""
     target = str(path) if path is not None else str(DB_PATH)
     if target not in (":memory:", ""):
         file_path = Path(target)
@@ -150,7 +150,7 @@ class ValidationError(ValueError):
 
 
 def coerce_value(column, value):
-    """Coerce a Python value to its SQLite storage form (README §4.2)."""
+    """Coerce a Python value to its SQLite storage form (reference.md §4.2)."""
     fin_type = column if isinstance(column, str) else getattr(column, "fin_type", None)
     if value is None:
         return None
@@ -289,7 +289,7 @@ def serialize_value(value, fin_type, *, blob_format=BLOB_FORMAT):
 
 
 def serialize_rows(rows, column_types=None, *, columns=None, blob_format=BLOB_FORMAT):
-    """Serialize result rows into JSON-ready dicts (README §6.3).
+    """Serialize result rows into JSON-ready dicts (reference.md §6.3).
 
     ``column_types`` defaults to ``COLUMN_TYPES_BY_NAME``; columns missing from
     that mapping pass through as stored.
@@ -359,7 +359,7 @@ def serialize_row(row, column_types=None, *, columns=None, blob_format=BLOB_FORM
 
 
 def map_sqlite_error(exc):
-    """Map a SQLite error to the FINN error contract (README §7)."""
+    """Map a SQLite error to the FINN error contract (reference.md §7)."""
     if not isinstance(exc, sqlite3.IntegrityError):
         return None
 

@@ -4,8 +4,8 @@ Public surface (relied on by the API/build layers):
 
 * :func:`connect` -- open a connection with the mandated pragmas.
 * :func:`bootstrap` -- create the schema once; run ``init`` only on first creation.
-* :func:`serialize_row` / :func:`serialize_rows` -- README §6.3 value serialization.
-* :func:`map_sqlite_error` -- README §7 SQLite error mapping.
+* :func:`serialize_row` / :func:`serialize_rows` -- reference.md §6.3 value serialization.
+* :func:`map_sqlite_error` -- reference.md §7 SQLite error mapping.
 """
 
 from __future__ import annotations
@@ -331,7 +331,7 @@ def db_init(path, spec: DatabaseSpec) -> Tuple[bool, Optional[str]]:
 
 
 # ---------------------------------------------------------------------------
-# Serialization (README §6.3)
+# Serialization (reference.md §6.3)
 # ---------------------------------------------------------------------------
 
 
@@ -590,7 +590,7 @@ def serialize_row(
 
 
 # ---------------------------------------------------------------------------
-# Error mapping (README §7)
+# Error mapping (reference.md §7)
 # ---------------------------------------------------------------------------
 
 

@@ -1,6 +1,6 @@
 """API-layer tests for FINN (stdlib ``unittest``, not pytest).
 
-Covers README §5 (api parsing/params), §5.5 (statement kinds/HTTP semantics),
+Covers reference.md §5 (api parsing/params), §5.5 (statement kinds/HTTP semantics),
 §6.2/§6.4 (response shaping + pagination), §7 (error contract), and
 §8.1/§8.3 (generated ``API.py`` / ``main.py``).
 
@@ -58,7 +58,7 @@ def _symlinks_supported():
 
 SYMLINKS_SUPPORTED = _symlinks_supported()
 
-# The exact `api` block from README §12.
+# The exact `api` block from reference.md §11.
 EXAMPLE_API = {
     "basePath": "/api",
     "endpoints": {
@@ -89,7 +89,7 @@ def _api(**endpoints):
 
 
 class StatementKindTests(unittest.TestCase):
-    """README §5.5 — statement classification."""
+    """reference.md §5.5 — statement classification."""
 
     def test_select(self):
         self.assertEqual(statement_kind("SELECT * FROM users"), "SELECT")
@@ -128,7 +128,7 @@ class StatementKindTests(unittest.TestCase):
 
 
 class SplitStatementsTests(unittest.TestCase):
-    """README §5.4 — splitting multi-statement SQL on top-level ``;``."""
+    """reference.md §5.4 — splitting multi-statement SQL on top-level ``;``."""
 
     def test_splits_multiple_statements(self):
         statements = split_statements(
@@ -142,7 +142,7 @@ class SplitStatementsTests(unittest.TestCase):
 
 
 class ExtractParamsTests(unittest.TestCase):
-    """README §5.3 — named bind parameter scanning."""
+    """reference.md §5.3 — named bind parameter scanning."""
 
     def test_named_sigils(self):
         self.assertEqual(
@@ -196,7 +196,7 @@ class ExtractParamsTests(unittest.TestCase):
 
 
 class ParseApiExampleTests(unittest.TestCase):
-    """README §5/§6.2/§12 — parsing the worked example."""
+    """reference.md §5/§6.2/§11 — parsing the worked example."""
 
     def setUp(self):
         self.spec = parse_api(EXAMPLE_API)
@@ -270,7 +270,7 @@ class ParseApiExampleTests(unittest.TestCase):
 
 
 class ParseApiValidationTests(unittest.TestCase):
-    """README §5 — strict validation and path-scoped ConfigErrors."""
+    """reference.md §5 — strict validation and path-scoped ConfigErrors."""
 
     def assert_config_error(self, expected_path, api, message=None):
         with self.assertRaises(ConfigError) as caught:
@@ -724,7 +724,7 @@ class ParseApiValidationTests(unittest.TestCase):
 
 
 class RenderApiTests(unittest.TestCase):
-    """README §7/§8.3 — generated ``API.py``."""
+    """reference.md §7/§8.3 — generated ``API.py``."""
 
     def setUp(self):
         self.spec = parse_api(EXAMPLE_API)
@@ -911,7 +911,7 @@ class RenderApiTests(unittest.TestCase):
 
 
 class RenderMainTests(unittest.TestCase):
-    """README §8.1 — generated ``main.py``."""
+    """reference.md §8.1 — generated ``main.py``."""
 
     def test_ast_parses_and_mounts_router(self):
         spec = parse_api(EXAMPLE_API)
@@ -934,7 +934,7 @@ class RenderMainTests(unittest.TestCase):
 
 
 class StaticParsingTests(unittest.TestCase):
-    """README §5.6 — optional ``api.static`` parsing and validation."""
+    """reference.md §5.6 — optional ``api.static`` parsing and validation."""
 
     def test_parse_static_targets(self):
         spec = parse_api(
@@ -1228,7 +1228,7 @@ class StaticParsingTests(unittest.TestCase):
 
 
 class RenderMainStaticTests(unittest.TestCase):
-    """README §5.6/§8.1 — static serving in generated ``main.py``."""
+    """reference.md §5.6/§8.1 — static serving in generated ``main.py``."""
 
     def test_directory_target_uses_staticfiles_html(self):
         spec = parse_api(
@@ -1361,7 +1361,7 @@ class RenderMainStaticTests(unittest.TestCase):
 
 
 class GenerateTests(unittest.TestCase):
-    """README §8.1/§8.3 — build emission + safe wrapper."""
+    """reference.md §8.1/§8.3 — build emission + safe wrapper."""
 
     def setUp(self):
         self.spec = parse_api(EXAMPLE_API)
@@ -1438,7 +1438,7 @@ class GenerateTests(unittest.TestCase):
 
 
 class StaticGenerateTests(unittest.TestCase):
-    """README §5.6/§8.1 — copying static targets into ``build/_static``."""
+    """reference.md §5.6/§8.1 — copying static targets into ``build/_static``."""
 
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()

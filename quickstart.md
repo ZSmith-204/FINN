@@ -7,6 +7,9 @@ FINN reads a single JSON config (`finn.json`) that describes a database schema
 and an API, then generates a self-contained FastAPI + SQLite backend in a
 `build/` folder. You never write handler code — you write SQL.
 
+> **This is the fast read.** For full installation options and deeper usage, see
+> [**README.md**](README.md).
+
 ---
 
 ## 1. Prerequisites
@@ -33,8 +36,8 @@ The CLI itself is stdlib-only for `init`, `build`, and `validate`; only
 Pick whichever fits your setup (all are equivalent):
 
 ```bash
-python3 cli.py <command> ...     # from the repo root
-python3 -m cli <command> ...     # same, as a module
+python3 finn_cli.py <command> ...   # from the repo root
+python3 -m finn_cli <command> ...   # same, as a module
 finn <command> ...               # if you built the PyInstaller binary (dist/finn)
 ```
 
@@ -140,16 +143,13 @@ finn init --force             # overwrite an existing finn.json
 |---|---|
 | `0` | Success |
 | `1` | Validation error (a diagnostic with `severity: error`) |
-| `2` | I/O / runtime failure (bad path, port in use, schema conflict) |
+| `2` | I/O / runtime failure (bad path, port in use, schema conflict, init target exists) |
 | `3` | Usage error (unknown command/flag) |
+| `130` | Interrupted (SIGINT/SIGTERM mid-command) |
 
 ---
 
 ## 3. The GUI — FINN Studio
-
-> **Note:** `docs/gui-spec.md` describes a browser-hosted app. That is out of
-> date — the current implementation is a native **PyQt6 desktop application**,
-> `finn_studio.py`. The screens and safety rules are the same; the host is not.
 
 ### 3.1 Launching it
 

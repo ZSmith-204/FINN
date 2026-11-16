@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for the FINN CLI (docs/cli-spec.md).
+"""PyInstaller spec for the FINN CLI (docs/cli-layer.md).
 
 Build from the repository root:
 

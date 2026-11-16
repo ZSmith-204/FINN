@@ -4,12 +4,12 @@ Orchestrates the existing ``database`` and ``api`` packages: parse/validate a
 JSON config, emit the generated build (``main.py``, ``API.py``, ``DB.py``, the
 SQLite database and a build manifest), and serve it with uvicorn.
 
-See ``docs/cli-spec.md`` for the normative contract.
+See ``docs/cli-layer.md`` for the CLI layer's contract.
 
 Run from the repository root:
 
-    python3 -m cli --help
-    python3 cli.py --version
+    python3 -m finn_cli --help
+    python3 finn_cli.py --version
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def _quiet_package_loggers():
         package_logger.propagate = False
 
 # ---------------------------------------------------------------------------
-# Templates (written verbatim; see docs/cli-spec.md §6.1)
+# Templates (written verbatim; see docs/cli-layer.md)
 # ---------------------------------------------------------------------------
 
 _EXAMPLE_BODY = """{
@@ -204,7 +204,7 @@ def make_diagnostic(
     hint=None,
     span=None,
 ):
-    """Build one diagnostic dict (docs/cli-spec.md §4)."""
+    """Build one diagnostic dict (docs/cli-layer.md)."""
 
     return {
         "severity": severity,
@@ -333,7 +333,7 @@ def parse_json(text):
 
 
 def resolve_config(explicit=None, positional=None, cwd=None, env=None):
-    """Resolve the config path (docs/cli-spec.md §3).
+    """Resolve the config path (docs/cli-layer.md).
 
     Returns ``(path_or_None, diagnostics)``.
     """
@@ -400,7 +400,7 @@ def resolve_config(explicit=None, positional=None, cwd=None, env=None):
 
 
 def validate_structure(root):
-    """Top-level structural validation (docs/cli-spec.md §6.2 stage 2)."""
+    """Top-level structural validation (docs/cli-layer.md)."""
 
     diagnostics = []
     if not isinstance(root, dict):
@@ -1331,7 +1331,7 @@ def _read_manifest(out_dir):
 
 
 def _is_stale(manifest, config_sha256):
-    """Return whether a build must be regenerated (docs/cli-spec.md §6.3)."""
+    """Return whether a build must be regenerated (docs/cli-layer.md)."""
 
     if not isinstance(manifest, dict):
         return True
@@ -1484,7 +1484,7 @@ def _cmd_run(args):
         _run_errors([port_diagnostic], args.json)
         return 2
 
-    # Serve the generated app in-process (docs/cli-spec.md §6.3; the serving
+    # Serve the generated app in-process (docs/cli-layer.md; the serving
     # mechanism is a non-normative implementation hint).  fastapi and uvicorn
     # are imported lazily here so ``init``/``build``/``validate`` stay
     # stdlib-only; when frozen by PyInstaller they are bundled with the binary.

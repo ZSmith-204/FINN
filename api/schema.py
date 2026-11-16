@@ -1,4 +1,4 @@
-"""Parsing and validation of FINN's ``api`` config block (README §5).
+"""Parsing and validation of FINN's ``api`` config block (reference.md §5).
 
 This module models the HTTP surface only: endpoints, operations, parameter
 sources, and response shaping.  It is standard-library only and has no
@@ -38,7 +38,7 @@ LOGGER = logging.getLogger("api")
 
 METHODS: Tuple[str, ...] = ("get", "post", "put", "patch", "delete")
 
-# FastAPI derives these from ``get``; configuring them is ignored (README §5.1).
+# FastAPI derives these from ``get``; configuring them is ignored (reference.md §5.1).
 _IGNORED_METHODS = ("head", "options")
 
 _API_KEYS = ("basePath", "endpoints", "cors", "static")
@@ -81,11 +81,11 @@ _IDENT_START = frozenset(
 _IDENT_CONT = _IDENT_START | frozenset("0123456789")
 _PATH_SEGMENT_RE = re.compile(r"\{([^{}]*)\}")
 
-# Bind parameters reserved for pagination (README §6.4).
+# Bind parameters reserved for pagination (reference.md §6.4).
 _RESERVED_PAGINATION_PARAMS = ("__pageSize", "__offset")
 
 # Names that collide with injected generated-function arguments/locals
-# (README §5.3).  Declaring one would shadow or duplicate a generated name.
+# (reference.md §5.3).  Declaring one would shadow or duplicate a generated name.
 _RESERVED_NAMES = frozenset(
     ("page", "pageSize", "payload", "params", "result", "_value")
 )
@@ -109,7 +109,7 @@ class Param:
 
 @dataclass
 class Response:
-    """Response shaping for a SELECT operation (README §6.2)."""
+    """Response shaping for a SELECT operation (reference.md §6.2)."""
 
     shape: str = "list"
     key: Optional[str] = None
@@ -162,7 +162,7 @@ class ApiSpec:
 
 
 # ---------------------------------------------------------------------------
-# SQL scanning (README §5.3 / §5.4)
+# SQL scanning (reference.md §5.3 / §5.4)
 # ---------------------------------------------------------------------------
 
 
@@ -192,7 +192,7 @@ def _skip_leading(sql: str) -> int:
 
 
 def statement_kind(sql: str) -> str:
-    """Classify a SQL statement by its first keyword (README §5.5).
+    """Classify a SQL statement by its first keyword (reference.md §5.5).
 
     ``WITH`` is treated as ``SELECT`` (CTE) and ``REPLACE`` as ``INSERT``.
     Anything other than SELECT/INSERT/UPDATE/DELETE (including DDL) is
@@ -216,7 +216,7 @@ def _scan_sql(sql: str, path: str) -> Tuple[List[str], List[str]]:
 
     Skips single-quoted strings, double-quoted identifiers, bracket
     identifiers, ``--`` line comments, and ``/* ... */`` block comments.  A
-    bare ``?`` outside those contexts is a config error (README §5.3).
+    bare ``?`` outside those contexts is a config error (reference.md §5.3).
     Returns ``(parameter_names, statements)`` with deduped names in order.
     """
 
@@ -273,7 +273,7 @@ def _scan_sql(sql: str, path: str) -> Tuple[List[str], List[str]]:
             raise ConfigError(
                 path,
                 "positional parameter '?' is not allowed; use named "
-                "parameters (:name, @name, or $name) per README §5.3",
+                "parameters (:name, @name, or $name) per reference.md §5.3",
             )
 
         if char in ":@$":
@@ -366,7 +366,7 @@ def _path_segments(path: str) -> List[str]:
                 f"api.endpoints.{path}",
                 f"path parameter segment {{{name}}} is reserved and collides "
                 "with a generated name; reserved names are "
-                f"{', '.join(sorted(_RESERVED_NAMES))} (README §5.3)",
+                f"{', '.join(sorted(_RESERVED_NAMES))} (reference.md §5.3)",
             )
         if name not in segments:
             segments.append(name)
@@ -374,7 +374,7 @@ def _path_segments(path: str) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
-# Parsing (README §5)
+# Parsing (reference.md §5)
 # ---------------------------------------------------------------------------
 
 
@@ -386,7 +386,7 @@ def _parse_param(name: str, raw_param: object, path: str) -> Param:
             path,
             f"parameter name {name!r} is reserved and collides with a "
             "generated name; reserved names are "
-            f"{', '.join(sorted(_RESERVED_NAMES))} (README §5.3)",
+            f"{', '.join(sorted(_RESERVED_NAMES))} (reference.md §5.3)",
         )
     raw = _require_object(raw_param, path, "parameter definition")
     _check_keys(raw, _PARAM_KEYS, path)
@@ -486,12 +486,12 @@ def _parse_response(raw_response: object, path: str, kind: str) -> Response:
         if shape != "list":
             raise ConfigError(
                 f"{path}.paginate",
-                'pagination requires response.shape "list" (README §6.4)',
+                'pagination requires response.shape "list" (reference.md §6.4)',
             )
         if kind != "SELECT":
             raise ConfigError(
                 f"{path}.paginate",
-                "pagination requires a SELECT statement (README §6.4)",
+                "pagination requires a SELECT statement (reference.md §6.4)",
             )
 
     key: Optional[str] = None
@@ -547,13 +547,13 @@ def _parse_operation(path: str, method: str, raw_operation: object) -> Operation
         raise ConfigError(
             sql_path,
             "unsupported SQL statement; only SELECT/INSERT/UPDATE/DELETE are "
-            "allowed in endpoints (DDL is a config error, README §5.5)",
+            "allowed in endpoints (DDL is a config error, reference.md §5.5)",
         )
     if len(statements) > 1 and not multi:
         raise ConfigError(
             sql_path,
             'multiple ;-separated statements require "multi": true '
-            "(README §5.4)",
+            "(reference.md §5.4)",
         )
     kind = kinds[0]
 
@@ -576,21 +576,21 @@ def _parse_operation(path: str, method: str, raw_operation: object) -> Operation
             raise ConfigError(
                 f"{base}.params.{name}",
                 f"path parameter {{{name}}} is implicit in the endpoint path "
-                "and must not be declared with a non-path source (README §5.3)",
+                "and must not be declared with a non-path source (reference.md §5.3)",
             )
     for name, param in declared.items():
         if param.source == "path" and name not in path_names:
             raise ConfigError(
                 f"{base}.params.{name}",
                 f"declared path parameter {name!r} does not match any "
-                "{segment} in the endpoint path (README §5.3)",
+                "{segment} in the endpoint path (reference.md §5.3)",
             )
 
     if response.paginate:
         if multi:
             raise ConfigError(
                 f"{base}.response.paginate",
-                'pagination cannot be combined with "multi": true (README §5.4/§6.4)',
+                'pagination cannot be combined with "multi": true (reference.md §5.4/§6.4)',
             )
         reserved = set(_RESERVED_PAGINATION_PARAMS)
         if any(name in reserved for name in names) or any(
@@ -599,7 +599,7 @@ def _parse_operation(path: str, method: str, raw_operation: object) -> Operation
             raise ConfigError(
                 sql_path,
                 "the bind parameters :__pageSize and :__offset are reserved "
-                "for pagination and must not be declared (README §6.4)",
+                "for pagination and must not be declared (reference.md §6.4)",
             )
         if any(name in ("page", "pageSize") for name in names) or any(
             name in ("page", "pageSize") for name in declared
@@ -607,7 +607,7 @@ def _parse_operation(path: str, method: str, raw_operation: object) -> Operation
             raise ConfigError(
                 f"{base}.params",
                 "the query parameters 'page' and 'pageSize' are reserved by "
-                "pagination (README §6.4)",
+                "pagination (reference.md §6.4)",
             )
 
     params: Dict[str, Param] = {}
@@ -641,7 +641,7 @@ def _parse_operation(path: str, method: str, raw_operation: object) -> Operation
                 f"{base}.params.{name}",
                 f"parameter name {name!r} is reserved and collides with a "
                 "generated name; reserved names are "
-                f"{', '.join(sorted(_RESERVED_NAMES))} (README §5.3)",
+                f"{', '.join(sorted(_RESERVED_NAMES))} (reference.md §5.3)",
             )
 
     description = operation_def.get("description")
@@ -672,7 +672,7 @@ def _parse_endpoint(path: str, raw_endpoint: object) -> Endpoint:
         if method in _IGNORED_METHODS:
             LOGGER.warning(
                 "ignoring %s on %s: HEAD/OPTIONS are derived by FastAPI "
-                "(README §5.1)",
+                "(reference.md §5.1)",
                 raw_method,
                 path,
             )
@@ -766,7 +766,7 @@ def _parse_static(
     endpoints: Dict[str, Endpoint],
     base_path: str,
 ) -> Dict[str, StaticTarget]:
-    """Validate the optional ``api.static`` block (README §5.6)."""
+    """Validate the optional ``api.static`` block (reference.md §5.6)."""
 
     raw = _require_object(raw_static, "api.static", "static")
     static: Dict[str, StaticTarget] = {}
@@ -879,7 +879,7 @@ def _parse_static(
 
 
 def parse_api(api_config: dict) -> ApiSpec:
-    """Validate and normalize the config's ``api`` object (README §5)."""
+    """Validate and normalize the config's ``api`` object (reference.md §5)."""
 
     if not isinstance(api_config, dict):
         raise ConfigError("api", "must be a JSON object")
@@ -896,7 +896,7 @@ def parse_api(api_config: dict) -> ApiSpec:
     if len(base_path) > 1:
         base_path = base_path.rstrip("/") or "/"
 
-    # ``cors`` is a documented reserved key (README §9) that is accepted and
+    # ``cors`` is a documented reserved key (reference.md §9) that is accepted and
     # ignored for now; keep it on the spec for introspection.
     cors = api_config.get("cors")
 
