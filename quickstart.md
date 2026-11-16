@@ -224,15 +224,3 @@ Any `severity: error` disables Build and Run; warnings never block.
   diagnostic; a human must resolve it. The GUI never deletes `build/` or the DB.
 - **Engine mediation** — all validation/build/run go through the CLI, so GUI
   behavior matches the CLI exactly.
-
----
-
-## 4. Where next
-
-- **`.json` format & vocabulary:** [`README.md`](README.md) (the authoritative
-  product spec).
-- **CLI contract:** [`docs/cli-spec.md`](docs/cli-spec.md).
-- **Database layer:** [`docs/database-layer.md`](docs/database-layer.md).
-- **GUI behavior:** [`docs/gui-spec.md`](docs/gui-spec.md) (mind the §3.1 note:
-  the host described there has been replaced by the PyQt6 desktop app).
-- **Worked example:** `examples/todo/` (schema + a static `index.html`).
