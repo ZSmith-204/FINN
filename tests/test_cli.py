@@ -30,7 +30,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-import cli  # noqa: E402
+import finn_cli as cli  # noqa: E402
 
 HAVE_SERVER = bool(
     importlib.util.find_spec("uvicorn") and importlib.util.find_spec("fastapi")
@@ -919,7 +919,7 @@ class RunServerTests(EnvIsolatedTestCase):
             process = subprocess.Popen(
                 [
                     sys.executable,
-                    "cli.py",
+                    "finn_cli.py",
                     "run",
                     "--json",
                     "--config",
