@@ -11,3 +11,4 @@ bin/
 # artifacts
 dist/
 build/
+test/build/
