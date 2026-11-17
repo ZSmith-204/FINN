@@ -1,7 +1,5 @@
 ![FINN -- FINN Is Not NGINX](images/logo.png)
 
-# FINN
-
 **FINN Is Not NGINX.** FINN reads **one** JSON config file and generates a
 complete, self-contained **FastAPI + SQLite** backend. You never write handler
 code — you describe a schema and endpoints with SQL, and FINN produces a
